@@ -7,7 +7,7 @@ import logging
 import polars as pl
 import datetime
 from data_watchtower.utils.macro import MacroTemplate, default_macro_config
-from data_watchtower.core.validators.base import *
+from data_watchtower.validators.base import *
 
 
 class DataLoader(object):

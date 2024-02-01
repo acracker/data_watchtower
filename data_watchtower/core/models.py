@@ -1,6 +1,6 @@
 from peewee import *
 
-database = SqliteDatabase('data.db')
+database = SqliteDatabase(r'D:\code\data_watchtower\data.db')
 
 
 class UnknownField(object):
