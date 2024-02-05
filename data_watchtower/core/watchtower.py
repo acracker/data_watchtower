@@ -16,16 +16,18 @@ logger = logging.getLogger(__name__)
 
 class Watchtower(object):
 
-    def __init__(self, name, custom_macro_map=None):
+    def __init__(self, name, custom_macro_map=None, **extra):
         self._validators = []
+        self.extra = extra
+        self.metrics = {}
         self._loader = None
         self.custom_macro_map = custom_macro_map or {}
         self.used_macro_map = {}
         self.name = name
         self.meta = {}
 
-    def mount_data_loader(self, loder_cls, params: dict):
-        self.meta['loder'] = {'loder_cls': loder_cls, 'params': params}
+    def mount_data_loader(self, loader_cls, params: dict):
+        self.meta['loader'] = {'loader_cls': loader_cls, 'params': params}
 
     def add_validator(self, validator_cls, params: dict, **extra):
         self.meta.setdefault('validators', []).append(
@@ -39,7 +41,7 @@ class Watchtower(object):
 
     def get_macro_maps(self):
         strings = [self.name]
-        loader_params = self.meta['loder']['params'] or {}
+        loader_params = self.meta['loader']['params'] or {}
         for k, v in loader_params.items():
             if isinstance(v, str):
                 strings.append(v)
@@ -52,20 +54,12 @@ class Watchtower(object):
         macro_template = MacroTemplate(self.macro_config())
         return macro_template.get_used_macro_maps(strings)
 
-    def run(self):
-        macro_maps = self.get_macro_maps()
-        macro_template = MacroTemplate(macro_maps)
+    def gen_metrics(self, data, validators_result):
+        # self.metrics = data
+        pass
 
-        loader_params = self.meta['loder']['params'] or {}
-        loader_params = copy.deepcopy(loader_params)
-        for k, v in loader_params.items():
-            if isinstance(v, str):
-                loader_params[k] = macro_template.apply_string(v)
-
-        self._loader = self.meta['loder']['loder_cls'](**loader_params)
-
-        data = self._loader.load()
-        validators_result = []
+    def run_validators(self, data, macro_template):
+        result = []
         for item in self.meta['validators']:
             validator_cls = item['validator_cls']
             validator_params = item['params']
@@ -79,21 +73,44 @@ class Watchtower(object):
             validator_result = validator.validation()
             item = dict(
                 validator=validator.get_validator_name(),
-                datetime=datetime.datetime.now(),
+                run_time=datetime.datetime.now(),
                 params=validator_params,
             )
             validator_result.update(item)
             validator_result.update(validator_extra)
-            validators_result.append(validator_result)
+            result.append(validator_result)
+        return result
+
+    def run(self):
+        run_time = datetime.datetime.now()
+        macro_maps = self.get_macro_maps()
+        macro_template = MacroTemplate(macro_maps)
+        wt_name = macro_template.apply_string(self.name)
+        loader_params = self.meta['loader']['params'] or {}
+        loader_params = copy.deepcopy(loader_params)
+        for k, v in loader_params.items():
+            if isinstance(v, str):
+                loader_params[k] = macro_template.apply_string(v)
+        self._loader = self.meta['loader']['loader_cls'](**loader_params)
+        data = self._loader.load()
+        validators_result = self.run_validators(data, macro_template)
+        self.gen_metrics(data, validators_result)
         result = dict(
+            name=wt_name,
+            success=True,
+            run_time=run_time,
             macro_maps=macro_maps,
+            metrics=self.metrics,
             validators_result=validators_result,
         )
+        result.update(self.extra)
         return result
 
 
 def main():
     import pprint
+    from data_watchtower.services import save_run_log
+    from data_watchtower.database import SessionLocal
     host = '39.108.123.230'
     user = 'uadmin'
     pwd = 'uxmc*123'
@@ -101,11 +118,14 @@ def main():
     connection_string = f"mysql://{user}:{pwd}@{host}:3306/{db_name}"
     sql = ("SELECT `code`, `trading_day`,  `open`, `high`, `low`, `settle`, `close` FROM `t_eodprices` "
            "WHERE trading_day='${today}'   LIMIT ${n}")
-    data_handler = Watchtower("日行情-${today}")
-    data_handler.mount_data_loader(DatabaseLoader, dict(query=sql, connection=connection_string))
-    data_handler.add_validator(ExpectColumnValuesToNotBeNull, dict(column='high'), vid=1)
-    data_handler.add_validator(ExpectRowCountToBeBetween, dict(min_rows=50), vid=2)
-    pprint.pprint(data_handler.run())
+    wt = Watchtower("日行情-${today}")
+    wt.mount_data_loader(DatabaseLoader, dict(query=sql, connection=connection_string))
+    wt.add_validator(ExpectColumnValuesToNotBeNull, dict(column='high'), vid=1)
+    wt.add_validator(ExpectRowCountToBeBetween, dict(min_rows=50), vid=2)
+    run_log = wt.run()
+    pprint.pprint(run_log)
+    with SessionLocal() as db:
+        save_run_log(db, wt_id=1, run_log=run_log)
 
 
 if __name__ == '__main__':

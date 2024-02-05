@@ -12,8 +12,8 @@ class Validator(object):
         self.success = None
         self.metrics = None
 
-    def set_data_loader(self, loder):
-        self._data_loader = loder
+    def set_data_loader(self, loader):
+        self._data_loader = loader
 
     @classmethod
     def get_validator_name(cls):
