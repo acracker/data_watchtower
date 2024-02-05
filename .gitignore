@@ -224,3 +224,5 @@ cache
 .fleet
 *.db
 1.py
+.run
+local.md

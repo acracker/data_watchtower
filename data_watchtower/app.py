@@ -28,7 +28,6 @@ async def http_exception_handler(request, exc):
 
 
 if __name__ == "__main__":
-    # CREATE USER `dw_user`@`%` IDENTIFIED WITH mysql_native_password BY 'Dw_user123!';
     import uvicorn
     app.include_router(watchtower.router)
     # app.include_router(wt.router)
