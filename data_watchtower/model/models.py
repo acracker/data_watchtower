@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import logging
 import datetime
 import shortuuid
 from peewee import *
-from playhouse.db_url import connect
 from playhouse.shortcuts import model_to_dict
 from playhouse.sqlite_ext import TextField
 
 database_proxy = DatabaseProxy()
-
-logger = logging.getLogger('peewee')
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
 
 
 class BaseModel(Model):
@@ -25,21 +19,6 @@ class BaseModel(Model):
 
     class Meta:
         database = database_proxy
-        # database = SqliteDatabase(r'D:\code\data_watchtower\data.db')
-
-
-"""
-        wt_name=wt_name,
-        name=result['name'],
-        success=result['success'],
-        run_time=result['run_time'],
-        macro_maps=result['macro_maps'],
-        metrics=result['metrics'],
-        run_id=run_id,
-        run_type=1,
-        update_time=update_time,
-
-"""
 
 
 class ValidationDetail(BaseModel):
