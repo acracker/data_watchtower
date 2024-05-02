@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import json
-import datetime
 from data_watchtower.model.models import *
-from data_watchtower.core.utils import MacroTemplate
 from peewee import fn, JOIN
+from playhouse.db_url import connect
 
 
 def json_dumps(obj):
@@ -24,11 +23,12 @@ def json_loads(data):
 
 
 class DbServices(object):
-    def __init__(self, db=None):
-        if db is None:
-            db = SqliteDatabase(r'D:\code\data_watchtower\data.db')
-        self.database = db
-        database_proxy.initialize(db)
+    def __init__(self, connection):
+        if isinstance(connection, str):
+            self.database = connect(url=connection)
+        else:
+            self.database = connection
+        database_proxy.initialize(self.database)
 
     def create_tables(self):
         models = [Watchtower, ValidationDetail]
