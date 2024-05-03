@@ -3,6 +3,13 @@
 数据监控校验工具
 在你的CTO发现问题前, 发现问题
 
+## 安装
+
+```
+pip install data-watchtower
+```
+
+## 示例
 ```python
 import datetime
 from data_watchtower import (DbServices, Watchtower, DatabaseLoader,
@@ -42,3 +49,16 @@ db_svr.save_result(wt, result)
 db_svr.compute_watchtower_success_status(wt)
 
 ```
+
+## 支持的数据库
+
+* MySQL
+* Postgresql
+* SQLite
+* ...
+
+## 自定义校验器
+
+## 自定义数据加载器
+
+## 自定义宏

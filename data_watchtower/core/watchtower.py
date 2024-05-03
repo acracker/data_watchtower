@@ -3,15 +3,21 @@
 import copy
 import datetime
 
-from data_watchtower.core.utils import (spawn_data_loader_from_dict, spawn_validator_from_dict,
-                                        get_string_values, MacroTemplate)
+from data_watchtower.utils import (spawn_data_loader_from_dict, spawn_validator_from_dict,
+                                   get_string_values, MacroTemplate, json_loads, json_dumps)
 from data_watchtower.core.macro import DEFAULT_MACRO_CONFIG
 
 
 class Watchtower(object):
 
     def __init__(self, name, data_loader, **params):
-        custom_macro_map = params.get('custom_macro_map')
+        """
+
+        :param name:
+        :param data_loader:
+        :param params:
+        """
+        custom_macro_map = params.get('custom_macro_map')  # 只是运行的时候使用,不会保存
         validator_success_method = params.get('validator_success_method', 'all')
         success_method = params.get('success_method', None)
         extra = params.get('extra', {})
@@ -41,16 +47,24 @@ class Watchtower(object):
     @classmethod
     def from_dict(cls, data):
         data_loader = spawn_data_loader_from_dict(data.get('data_loader', {}))
-        custom_macro_map = data.get('custom_macro_map')
         validator_success_method = data.get('validator_success_method', 'all')
         inst = cls(
             name=data['name'], data_loader=data_loader,
-            custom_macro_map=custom_macro_map,
             validator_success_method=validator_success_method,
         )
         for validator in data.get('validators', []):
             inst.add_validator(spawn_validator_from_dict(validator))
         return inst
+
+    def to_dict(self):
+        result = dict(
+            name=self.name,
+            data_loader=json_dumps(self.get_loader_meta()),
+            validators=json_dumps(self.get_validator_meta()),
+            validator_success_method=self.validator_success_method,
+            success_method=self.success_method,
+        )
+        return result
 
     def add_validator(self, validator):
         item = validator.to_dict()

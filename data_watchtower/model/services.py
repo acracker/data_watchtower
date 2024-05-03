@@ -1,25 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import json
-from data_watchtower.model.models import *
+import logging
+import datetime
+import shortuuid
 from peewee import fn, JOIN
+from peewee import IntegrityError
 from playhouse.db_url import connect
+from data_watchtower.model.models import ValidationDetail, Watchtower, database_proxy
+from data_watchtower.utils import json_dumps, json_loads
 
-
-def json_dumps(obj):
-    def _default_encoder(obj):
-        return str(obj)
-
-    if isinstance(obj, str):
-        return obj
-    return json.dumps(obj, default=_default_encoder, ensure_ascii=True)
-
-
-def json_loads(data):
-    if isinstance(data, str):
-        return json.loads(data)
-    else:
-        return data
+logger = logging.getLogger(__name__)
 
 
 class DbServices(object):
@@ -50,30 +40,43 @@ class DbServices(object):
         if item is not None:
             item['data_loader'] = json_loads(item['data_loader'])
             item['validators'] = json_loads(item['validators'])
-            item['custom_macro_map'] = json_loads(item['custom_macro_map'])
         return item
+
+    def get_watchtowers(self):
+        """
+        获取所有的watchtower
+        :return:
+        """
+        result = []
+        query = Watchtower.select(
+            Watchtower.name,
+            Watchtower.success,
+            Watchtower.run_time,
+            Watchtower.data_loader,
+            Watchtower.validators,
+            Watchtower.success_method,
+            Watchtower.validator_success_method,
+        )
+        for item in query:
+            result.append(item.to_dict(fields_from_query=query))
+        return result
 
     def add_watchtower(self, watchtower):
         update_time = datetime.datetime.now()
         try:
             with self.database.atomic():
-                wt = Watchtower(
-                    name=watchtower.name,
-                    data_loader=json_dumps(watchtower.get_loader_meta()),
-                    validators=json_dumps(watchtower.get_validator_meta()),
-                    custom_macro_map=json_dumps(watchtower.custom_macro_map),
-                    validator_success_method=watchtower.validator_success_method,
-                    success_method=watchtower.success_method,
-                    create_time=update_time,
-                    update_time=update_time,
-                )
+                item = watchtower.to_dict()
+                item['create_time'] = update_time
+                item['update_time'] = update_time
+                wt = Watchtower(**item)
                 return wt.save(force_insert=True)
         except IntegrityError as e:
+            logger.warning('add watchtower error!. msg:%s' % str(e))
             return None
 
     def update_watchtower(self, wt_name, **item):
         if len(item) == 0:
-            return
+            return 0
         update_time = datetime.datetime.now()
         with self.database.atomic():
             wt = Watchtower.select().where(Watchtower.name == wt_name).get()
@@ -82,8 +85,6 @@ class DbServices(object):
                     wt.validators = json_dumps(item.pop('validators'))
                 if 'data_loader' in item:
                     wt.validators = json_dumps(item.pop('data_loader'))
-                if 'custom_macro_map' in item:
-                    wt.validators = json_dumps(item.pop('custom_macro_map'))
                 for k, v in item.items():
                     setattr(wt, k, v)
                 wt.update_time = update_time
@@ -139,7 +140,6 @@ class DbServices(object):
         return
 
     def compute_watchtower_success_status(self, watchtower):
-        wt_name = "日行情-${last_trading_day}"
         wt_name = watchtower.name
         success_method = watchtower.validator_success_method
         if success_method == 'all':
@@ -179,18 +179,3 @@ class DbServices(object):
         run_time = datetime.datetime.now()
         success = self.compute_watchtower_success_status(watchtower)
         self.update_watchtower(watchtower.name, success=success, run_time=run_time)
-
-
-def main():
-    from data_watchtower import Watchtower
-    svr = DbServices()
-    # svr.foo()
-    x = svr.get_watchtower('日行情-${last_trading_day}')
-    ww = Watchtower.from_dict(x)
-    r = ww.run()
-    svr.update_watchtower_success_status(ww)
-    return
-
-
-if __name__ == '__main__':
-    main()

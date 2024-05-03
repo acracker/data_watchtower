@@ -6,16 +6,15 @@ import shortuuid
 from peewee import *
 from playhouse.shortcuts import model_to_dict
 from playhouse.sqlite_ext import TextField
+from ..utils import json_loads
 
 database_proxy = DatabaseProxy()
 
 
 class BaseModel(Model):
 
-    def to_dict(self):
-        return model_to_dict(self)
-
-    """A base model that will use our Sqlite database."""
+    def to_dict(self, fields_from_query=None):
+        return model_to_dict(self, fields_from_query=fields_from_query)
 
     class Meta:
         database = database_proxy
@@ -46,7 +45,6 @@ class Watchtower(BaseModel):
     run_time = DateTimeField(null=True)  # 最后一次运行的时间
     data_loader = TextField()
     validators = TextField()
-    custom_macro_map = TextField()
     success_method = CharField(max_length=64)
     validator_success_method = CharField(max_length=64, default='all', help_text='option: any, all')
     update_time = DateTimeField(default=datetime.datetime.now)
@@ -54,3 +52,11 @@ class Watchtower(BaseModel):
 
     class Meta:
         table_name = 'st_watchtower'
+
+    def to_dict(self, fields_from_query=None):
+        result = super().to_dict(fields_from_query=fields_from_query)
+        if 'data_loader' in result:
+            result['data_loader'] = json_loads(result['data_loader'])
+        if 'validators' in result:
+            result['validators'] = json_loads(result['validators'])
+        return result

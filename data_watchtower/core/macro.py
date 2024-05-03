@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import logging
 import datetime
-from data_watchtower.core.utils import load_object
+from data_watchtower.utils import load_object
 
 logger = logging.getLogger(__name__)
 

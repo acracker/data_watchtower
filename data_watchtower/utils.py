@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import re
-import datetime
+import json
 import copy
 import importlib
 from string import Template
 
-from attrs import define, field, asdict
+from attrs import asdict
 
 
 def load_object(path):
@@ -167,3 +167,45 @@ class MacroTemplate(object):
             return result
         else:
             return value
+
+
+def json_dumps(obj):
+    def _default_encoder(_obj):
+        return str(_obj)
+
+    if isinstance(obj, str):
+        return obj
+    return json.dumps(obj, default=_default_encoder, ensure_ascii=True)
+
+
+def json_loads(data):
+    if isinstance(data, str):
+        return json.loads(data)
+    else:
+        return data
+
+
+def dump_macro_map(macro_map):
+    """
+    把模板转换成字符串
+    :param macro_map:
+    :return:
+    """
+
+    pass
+
+
+def f2():
+    return 1
+
+
+def main():
+    def add():
+        return 1
+
+    import inspect
+    return
+
+
+if __name__ == '__main__':
+    main()

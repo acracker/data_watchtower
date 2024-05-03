@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 from attrs import define, field
-from .utils import to_dict, from_dict, to_snake
+from ..utils import to_dict, from_dict, to_snake
 
 
 class BaseBean:
