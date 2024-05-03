@@ -74,7 +74,7 @@ def gen_data():
 
 
 def main():
-
+    wt_name = 'score of ${today}'
     # 自定义宏模板
     custom_macro_map = {
         'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
@@ -86,7 +86,7 @@ def main():
     data_loader = DatabaseLoader(query=query, connection=dw_test_data_db_url)
     data_loader.load()
     # 创建监控项
-    wt = Watchtower(name='score of ${today}', data_loader=data_loader, custom_macro_map=custom_macro_map)
+    wt = Watchtower(name=wt_name, data_loader=data_loader, custom_macro_map=custom_macro_map)
     # 添加校验器
     params = ExpectRowCountToBeBetween.Params(min_value=NUM_OF_STUDENTS, max_value=None)
     wt.add_validator(ExpectRowCountToBeBetween(params))
@@ -107,7 +107,9 @@ def main():
     db_svr.save_result(wt, result)
     # 重新计算监控项的成功状态
     db_svr.update_watchtower_success_status(wt)
-    return result
+
+    wd = db_svr.get_watchtower(wt_name)
+    return
 
 
 if __name__ == '__main__':

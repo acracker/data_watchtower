@@ -6,7 +6,7 @@ import shortuuid
 from peewee import fn, JOIN
 from peewee import IntegrityError
 from playhouse.db_url import connect
-from data_watchtower.model.models import ValidationDetail, Watchtower, database_proxy
+from data_watchtower.model.models import ValidationDetail, Watchtower, database_proxy, ValidatorRelation
 from data_watchtower.utils import json_dumps, json_loads
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class DbServices(object):
         database_proxy.initialize(self.database)
 
     def create_tables(self):
-        models = [Watchtower, ValidationDetail]
+        models = [Watchtower, ValidationDetail, ValidatorRelation]
         with self.database:
             for model in models:
                 if not self.database.table_exists(model):
@@ -39,7 +39,15 @@ class DbServices(object):
         item = model.to_dict()
         if item is not None:
             item['data_loader'] = json_loads(item['data_loader'])
-            item['validators'] = json_loads(item['validators'])
+            # item['validators'] = json_loads(item['validators'])
+        validators = ValidatorRelation.select().where(ValidatorRelation.wt_name == name)
+        item['validators'] = []
+        for validator_item in validators:
+            validator = dict(
+                params=json_loads(validator_item.params),
+                __class__=validator_item.validator,
+            )
+            item['validators'].append(validator)
         return item
 
     def get_watchtowers(self):
@@ -53,7 +61,6 @@ class DbServices(object):
             Watchtower.success,
             Watchtower.run_time,
             Watchtower.data_loader,
-            Watchtower.validators,
             Watchtower.success_method,
             Watchtower.validator_success_method,
         )
@@ -69,10 +76,19 @@ class DbServices(object):
                 item['create_time'] = update_time
                 item['update_time'] = update_time
                 wt = Watchtower(**item)
-                return wt.save(force_insert=True)
+                wt.save(force_insert=True)
+                validators = []
+                for validator_item in watchtower.get_validator_meta():
+                    inst = ValidatorRelation(
+                        wt_name=watchtower.name,
+                        validator=validator_item['__class__'],
+                        params=json_dumps(validator_item['params']),
+                    )
+                    validators.append(inst)
+                ValidatorRelation.bulk_create(validators, batch_size=100)
         except IntegrityError as e:
             logger.warning('add watchtower error!. msg:%s' % str(e))
-            return None
+            return
 
     def update_watchtower(self, wt_name, **item):
         if len(item) == 0:
@@ -82,7 +98,15 @@ class DbServices(object):
             wt = Watchtower.select().where(Watchtower.name == wt_name).get()
             if wt:
                 if 'validators' in item:
-                    wt.validators = json_dumps(item.pop('validators'))
+                    validators = []
+                    for validator_item in wt.get_validator_meta():
+                        inst = ValidatorRelation(
+                            wt_name=wt.name,
+                            validator=validator_item['__class__'],
+                            params=json_dumps(validator_item['params']),
+                        )
+                        validators.append(inst)
+                    ValidatorRelation.bulk_create(validators, batch_size=100)
                 if 'data_loader' in item:
                     wt.validators = json_dumps(item.pop('data_loader'))
                 for k, v in item.items():
@@ -179,3 +203,11 @@ class DbServices(object):
         run_time = datetime.datetime.now()
         success = self.compute_watchtower_success_status(watchtower)
         self.update_watchtower(watchtower.name, success=success, run_time=run_time)
+
+    def add_validator_to_watchtower(self, wt_name, validator, params):
+        inst = ValidatorRelation(
+            wt_name=wt_name,
+            validator=validator,
+            params=params,
+        )
+        return inst.save(force_insert=True)

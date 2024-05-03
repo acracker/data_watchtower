@@ -36,22 +36,22 @@ class ValidationDetail(BaseModel):
     create_time = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
-        table_name = 'st_validation_detail'
+        table_name = 'dw_validation_detail'
 
 
 class Watchtower(BaseModel):
-    name = CharField(max_length=128, primary_key=True)
+    name = CharField(max_length=128, primary_key=True)  # wt_name
     success = BooleanField(null=True)  # success
     run_time = DateTimeField(null=True)  # 最后一次运行的时间
     data_loader = TextField()
-    validators = TextField()
+    # validators = TextField()
     success_method = CharField(max_length=64)
     validator_success_method = CharField(max_length=64, default='all', help_text='option: any, all')
     update_time = DateTimeField(default=datetime.datetime.now)
     create_time = DateTimeField(default=datetime.datetime.now)
 
     class Meta:
-        table_name = 'st_watchtower'
+        table_name = 'dw_watchtower'
 
     def to_dict(self, fields_from_query=None):
         result = super().to_dict(fields_from_query=fields_from_query)
@@ -60,3 +60,15 @@ class Watchtower(BaseModel):
         if 'validators' in result:
             result['validators'] = json_loads(result['validators'])
         return result
+
+
+class ValidatorRelation(BaseModel):
+    id = AutoField(primary_key=True)
+    wt_name = CharField(max_length=128, index=True)
+    validator = CharField(index=True)
+    params = TextField(null=True)
+    update_time = DateTimeField(default=datetime.datetime.now)
+    create_time = DateTimeField(default=datetime.datetime.now)
+
+    class Meta:
+        table_name = 'dw_validator_relation'
