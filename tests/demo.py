@@ -79,6 +79,7 @@ def main():
     custom_macro_map = {
         'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
         'start_date': '2024-04-01',
+        'column': 'name',
     }
     # 设置数据加载器,用来加载需要校验的数据
     query = "SELECT * FROM score where date='${today}'"
@@ -90,7 +91,7 @@ def main():
     params = ExpectRowCountToBeBetween.Params(min_value=NUM_OF_STUDENTS, max_value=None)
     wt.add_validator(ExpectRowCountToBeBetween(params))
 
-    params = ExpectColumnValuesToNotBeNull.Params(column='name')
+    params = ExpectColumnValuesToNotBeNull.Params(column='${column}')
     wt.add_validator(ExpectColumnValuesToNotBeNull(params))
 
     result = wt.run()

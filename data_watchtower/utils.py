@@ -63,6 +63,7 @@ def spawn_validator_from_dict(item):
 
 
 def spawn_data_loader_from_dict(item):
+    item = item.copy()
     cls_path = item.pop('__class__')
     cls = load_object(cls_path)
     return cls.from_dict(item)

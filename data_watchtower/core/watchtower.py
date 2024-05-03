@@ -22,8 +22,8 @@ class Watchtower(object):
         success_method = params.get('success_method', None)
         extra = params.get('extra', {})
         self.params = params
-        self._data_loader = data_loader
-        self._data_loader_meta = data_loader.to_dict()
+        self._data_loader = data_loader  # 原本的loader,参数可能包含宏
+        self._data_loader_meta = data_loader.to_dict()  # 原本的loader,参数可能包含宏
         self._validators = []
         self._validators_meta = []
         self.name = name
@@ -125,11 +125,13 @@ class Watchtower(object):
         wt_name = macro_template.apply_string(self.name)
         # self.metrics['raw_name'] = self.name
         # self.metrics['name'] = wt_name
-
+        data_loader_meta = {}
         for k, v in self._data_loader_meta.items():
             if isinstance(v, str):
-                self._data_loader_meta[k] = macro_template.apply_string(v)
-        self._data_loader = spawn_data_loader_from_dict(self._data_loader_meta)
+                data_loader_meta[k] = macro_template.apply_string(v)
+            else:
+                data_loader_meta[k] = v
+        self._data_loader = spawn_data_loader_from_dict(data_loader_meta)
         data = self._data_loader.load()
         validators_result = self.run_validators(data, macro_template)
         self.gen_metrics(data, validators_result)

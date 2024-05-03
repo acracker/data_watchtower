@@ -53,6 +53,9 @@ class Validator(object):
         self.result = None
         self.params = params
 
+    def params_to_dict(self):
+        return to_dict(self.params)
+
     def _validation(self):
         raise NotImplementedError
 
@@ -77,6 +80,7 @@ class Validator(object):
     def to_dict(self):
         result = dict()
         result['params'] = to_dict(self.params)
+        # result['params']['__class__'] = "%s:%s" % (self.params.__class__.__module__, self.params.__class__.__name__)
         result['__class__'] = "%s:%s" % (self.__class__.__module__, self.__class__.__name__)
         return result
 
