@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import datetime
+import polars as pl
+import pandas as pd
 from attrs import define, field
 from ..utils import to_dict, from_dict, to_snake
 
@@ -64,7 +66,12 @@ class Validator(object):
         return result
 
     def set_data(self, data):
-        self._data = data
+        if isinstance(data, pl.DataFrame):
+            self._data = data
+        elif isinstance(data, pd.DataFrame):
+            self._data = pl.from_pandas(data)
+        else:
+            self._data = pl.DataFrame(data)
 
     def get_data(self):
         return self._data

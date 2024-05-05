@@ -159,8 +159,8 @@ class TestDemoClass:
         result = validator.validation()
         # 断言验证结果是否符合预期
         assert result.success
-        assert result.metrics['column_laced_values'] == set()
-        assert result.metrics['param_laced_values'] == set()
+        assert len(result.metrics['column_laced_values']) == 0
+        assert len(result.metrics['param_laced_values']) == 0
 
     def test_expect_column_distinct_values_to_be_in_set(self):
         # 创建需要的测试数据
