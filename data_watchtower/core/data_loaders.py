@@ -1,29 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from attrs import define, field
-from playhouse.db_url import connect
-
+import pandas as pd
 import polars as pl
+from attrs import define, field
+from ..utils import connect_db_from_url
+
 from .base import DataLoader
-
-
-@define()
-class DatabaseLoaderCx(DataLoader):
-    """
-    使用connectorx连接数据库
-    """
-    query = field(type=str)
-    connection = field(type=str)
-
-    def _load(self):
-
-        if isinstance(self.connection, str):
-            try:
-                return pl.read_database_uri(self.query, self.connection)
-            except AttributeError:
-                return pl.read_database(self.query, self.connection, engine='adbc')
-        else:
-            return pl.read_database(self.query, self.connection)
 
 
 @define()
@@ -35,9 +17,17 @@ class DatabaseLoader(DataLoader):
     connection = field(type=str)
 
     def _load(self):
-        database = connect(self.connection)
-        connection = database.connection()
-        data = pl.read_database(self.query, connection=connection)
-        connection.close()
-        database.close()
-        return data
+        if pl.__version__ > '0.18.4':
+            database = connect_db_from_url(self.connection)
+            connection = database.connection()
+            data = pl.read_database(self.query, connection=connection)
+            connection.close()
+            database.close()
+            return data
+        else:
+            database = connect_db_from_url(self.connection)
+            connection = database.connection()
+            data = pd.read_sql(sql=self.query, con=connection)
+            connection.close()
+            database.close()
+            return data

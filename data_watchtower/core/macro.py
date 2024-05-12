@@ -36,7 +36,7 @@ DEFAULT_MACRO_CONFIG = {
 
 }
 try:
-    custom_macro = load_object('macros:DEFAULT_MACRO_CONFIG')
+    custom_macro = load_object('dw_custom.macros:DEFAULT_MACRO_CONFIG')
     DEFAULT_MACRO_CONFIG.update(custom_macro)
     logger.info('custom macros loaded. count:%s' % len(custom_macro))
 except (ModuleNotFoundError, NameError):

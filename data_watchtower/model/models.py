@@ -20,7 +20,7 @@ class BaseModel(Model):
         database = database_proxy
 
 
-class ValidationDetail(BaseModel):
+class ValidationDetailModel(BaseModel):
     id = AutoField(primary_key=True)
     wt_name = CharField(max_length=128, index=True)
     name = CharField(max_length=128)
@@ -39,7 +39,7 @@ class ValidationDetail(BaseModel):
         table_name = 'dw_validation_detail'
 
 
-class Watchtower(BaseModel):
+class WatchtowerModel(BaseModel):
     name = CharField(max_length=128, primary_key=True)  # wt_name
     success = BooleanField(null=True)  # success
     run_time = DateTimeField(null=True)  # 最后一次运行的时间
@@ -62,7 +62,7 @@ class Watchtower(BaseModel):
         return result
 
 
-class ValidatorRelation(BaseModel):
+class ValidatorRelationModel(BaseModel):
     id = AutoField(primary_key=True)
     wt_name = CharField(max_length=128, index=True)
     validator = CharField(index=True)

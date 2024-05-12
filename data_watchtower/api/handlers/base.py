@@ -2,16 +2,49 @@
 # -*- coding: utf-8 -*-
 
 import tornado.web
-from data_watchtower.utils import json_dumps
+from data_watchtower.utils import json_dumps, json_loads
 
 
 class BaseHandler(tornado.web.RequestHandler):
+    def _handle_request_exception(self, e):
+        self.json(error={'err_code': 1, 'err_msg': str(e)})
+        self.finish()
+        return
+
+    def set_default_headers(self) -> None:
+        """
+        设置允许跨域header
+        :return:
+        """
+        super().set_default_headers()
+        if self.application.settings['debug']:
+            origin = self.request.headers.get('Referer')
+            if origin:
+                idx = origin.find('/', origin.find('//') + 2)
+                origin = origin[:idx]
+            origin = origin or "%s://%s" % (self.request.protocol, self.request.host)
+            allow_headers = "Accept, Authorization, Cache-Control, Content-Type, DNT, If-Modified-Since, " \
+                            "Keep-Alive, Origin, User-Agent, X-Requested-With, Token, x-access-token, " \
+                            "X-Requested-With, yitoulogintoken "
+            self.set_header("Access-Control-Allow-Origin", origin)
+            self.set_header("Access-Control-Allow-Credentials", "true")
+            self.set_header("Access-Control-Allow-Headers", allow_headers)
+            self.set_header("Access-Control-Allow-Methods", "GET,POST,PUT,POST,DELETE,OPTIONS")
+
+    def options(self, *args, **kwargs):
+        return self.write_json()
+
+
     def initialize(self, *args, **kwargs):
         self.database = self.settings.get('database')
 
     @staticmethod
     def json_dumps(data):
         return json_dumps(data)
+
+    @staticmethod
+    def json_loads(data):
+        return json_loads(data)
 
     def json(self, data=None, error=None):
         if data is None:
@@ -23,6 +56,6 @@ class BaseHandler(tornado.web.RequestHandler):
             )
         data = {
             'data': data,
-            'error': error,
         }
+        data.update(error)
         self.write(self.json_dumps(data))

@@ -5,9 +5,8 @@ import datetime
 import shortuuid
 from peewee import fn, JOIN
 from peewee import IntegrityError
-from playhouse.db_url import connect
-from data_watchtower.model.models import ValidationDetail, Watchtower, database_proxy, ValidatorRelation
-from data_watchtower.utils import json_dumps, json_loads
+from data_watchtower.model.models import ValidationDetailModel, WatchtowerModel, database_proxy, ValidatorRelationModel
+from data_watchtower.utils import json_dumps, json_loads, connect_db_from_url
 
 logger = logging.getLogger(__name__)
 
@@ -22,25 +21,25 @@ class DbServices(object):
             other: eg. MySQLDatabase, PostgresqlDatabase ...
         """
         if isinstance(connection, str):
-            self.database = connect(url=connection)
+            self.database = connect_db_from_url(url=connection)
         else:
             self.database = connection
         database_proxy.initialize(self.database)
 
     def create_tables(self):
-        models = [Watchtower, ValidationDetail, ValidatorRelation]
+        models = [WatchtowerModel, ValidationDetailModel, ValidatorRelationModel]
         with self.database:
             for model in models:
                 if not self.database.table_exists(model):
                     self.database.create_tables([model])
 
     def get_watchtower(self, name):
-        model = Watchtower.get(Watchtower.name == name).get()
+        model = WatchtowerModel.get(WatchtowerModel.name == name).get()
         item = model.to_dict()
         if item is not None:
             item['data_loader'] = json_loads(item['data_loader'])
             # item['validators'] = json_loads(item['validators'])
-        validators = ValidatorRelation.select().where(ValidatorRelation.wt_name == name)
+        validators = ValidatorRelationModel.select().where(ValidatorRelationModel.wt_name == name)
         item['validators'] = []
         for validator_item in validators:
             validator = dict(
@@ -56,13 +55,13 @@ class DbServices(object):
         :return:
         """
         result = []
-        query = Watchtower.select(
-            Watchtower.name,
-            Watchtower.success,
-            Watchtower.run_time,
-            Watchtower.data_loader,
-            Watchtower.success_method,
-            Watchtower.validator_success_method,
+        query = WatchtowerModel.select(
+            WatchtowerModel.name,
+            WatchtowerModel.success,
+            WatchtowerModel.run_time,
+            WatchtowerModel.data_loader,
+            WatchtowerModel.success_method,
+            WatchtowerModel.validator_success_method,
         )
         for item in query:
             result.append(item.to_dict(fields_from_query=query))
@@ -75,17 +74,17 @@ class DbServices(object):
                 item = watchtower.to_dict()
                 item['create_time'] = update_time
                 item['update_time'] = update_time
-                wt = Watchtower(**item)
+                wt = WatchtowerModel(**item)
                 wt.save(force_insert=True)
                 validators = []
                 for validator_item in watchtower.get_validator_meta():
-                    inst = ValidatorRelation(
+                    inst = ValidatorRelationModel(
                         wt_name=watchtower.name,
                         validator=validator_item['__class__'],
                         params=json_dumps(validator_item['params']),
                     )
                     validators.append(inst)
-                ValidatorRelation.bulk_create(validators, batch_size=100)
+                ValidatorRelationModel.bulk_create(validators, batch_size=100)
         except IntegrityError as e:
             logger.warning('add watchtower error!. msg:%s' % str(e))
             return
@@ -95,18 +94,18 @@ class DbServices(object):
             return 0
         update_time = datetime.datetime.now()
         with self.database.atomic():
-            wt = Watchtower.select().where(Watchtower.name == wt_name).get()
+            wt = WatchtowerModel.select().where(WatchtowerModel.name == wt_name).get()
             if wt:
                 if 'validators' in item:
                     validators = []
                     for validator_item in wt.get_validator_meta():
-                        inst = ValidatorRelation(
+                        inst = ValidatorRelationModel(
                             wt_name=wt.name,
                             validator=validator_item['__class__'],
                             params=json_dumps(validator_item['params']),
                         )
                         validators.append(inst)
-                    ValidatorRelation.bulk_create(validators, batch_size=100)
+                    ValidatorRelationModel.bulk_create(validators, batch_size=100)
                 if 'data_loader' in item:
                     wt.validators = json_dumps(item.pop('data_loader'))
                 for k, v in item.items():
@@ -118,7 +117,7 @@ class DbServices(object):
 
     def delete_watchtower(self, watchtower):
         with self.database.atomic():
-            wt = Watchtower.select().where(Watchtower.name == watchtower.wt_name).get()
+            wt = WatchtowerModel.select().where(WatchtowerModel.name == watchtower.wt_name).get()
             if wt:
                 return wt.delete_instance()
             else:
@@ -160,15 +159,16 @@ class DbServices(object):
             )
             records.append(row)
         with self.database.atomic():
-            ValidationDetail.insert_many(records).execute()
+            ValidationDetailModel.insert_many(records).execute()
+        self.update_watchtower_success_status(watchtower)
         return
 
     def compute_watchtower_success_status(self, watchtower):
         wt_name = watchtower.name
         success_method = watchtower.validator_success_method
         if success_method == 'all':
-            DetailAlias = ValidationDetail.alias()
-            DetailAliasBase = ValidationDetail.alias('base')
+            DetailAlias = ValidationDetailModel.alias()
+            DetailAliasBase = ValidationDetailModel.alias('base')
             join_query = DetailAlias.select(
                 DetailAlias.name,
                 fn.MAX(DetailAlias.run_time).alias('run_time')
@@ -186,9 +186,9 @@ class DbServices(object):
             return not query.exists()
         elif success_method == 'last':
             query = (
-                ValidationDetail.select(ValidationDetail.success)
-                .where((ValidationDetail.wt_name == wt_name) & (ValidationDetail.run_type == 1))
-                .order_by(ValidationDetail.run_time.desc())
+                ValidationDetailModel.select(ValidationDetailModel.success)
+                .where((ValidationDetailModel.wt_name == wt_name) & (ValidationDetailModel.run_type == 1))
+                .order_by(ValidationDetailModel.run_time.desc())
                 .limit(1)
             )
             item = query.get()
@@ -205,7 +205,7 @@ class DbServices(object):
         self.update_watchtower(watchtower.name, success=success, run_time=run_time)
 
     def add_validator_to_watchtower(self, wt_name, validator, params):
-        inst = ValidatorRelation(
+        inst = ValidatorRelationModel(
             wt_name=wt_name,
             validator=validator,
             params=params,

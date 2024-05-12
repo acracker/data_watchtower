@@ -29,7 +29,6 @@ class Watchtower(object):
         self.name = name
         self.metrics = {}
         custom_macro_map = custom_macro_map or {}
-        self.custom_macro_map = custom_macro_map
         self.macro_map = copy.deepcopy(DEFAULT_MACRO_CONFIG)
         self.macro_map.update(custom_macro_map)
         self.macro_template = MacroTemplate(self.macro_map)
@@ -43,6 +42,10 @@ class Watchtower(object):
                 self.success_method = 'last'
         else:
             self.success_method = success_method
+
+    def set_custom_macro(self, **custom_macro_map):
+        self.macro_map.update(custom_macro_map)
+        self.macro_template.macro_config.update(custom_macro_map)
 
     @classmethod
     def from_dict(cls, data):

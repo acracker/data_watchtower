@@ -9,7 +9,7 @@ from tornado.options import define, options
 from data_watchtower import DbServices
 from data_watchtower.api.url import URLS
 
-default_db_url = os.getenv('DW_DB_URL', "sqlite:///data.db")
+default_db_url = os.getenv('DW_BACKEND_DB_URL', "sqlite:///data.db")
 define("port", default=8888, type=int, help="port to listen on")
 define("db_url", default=default_db_url, help="db url")
 
@@ -18,7 +18,9 @@ def make_app():
     database = DbServices(options.db_url)
     app = tornado.web.Application(
         URLS,
-        database=database
+        database=database,
+        debug=True,
+        autoreload=False,
     )
     return app
 
@@ -27,6 +29,7 @@ async def main():
     options.parse_command_line()
     app = make_app()
     app.listen(options.port)
+    print("http://127.0.0.1:%s" % options.port)
     await asyncio.Event().wait()
 
 

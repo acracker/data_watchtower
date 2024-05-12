@@ -1,12 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import inspect
 import re
 import json
 import copy
 import importlib
+from pkgutil import iter_modules
 from string import Template
 
 from attrs import asdict
+from playhouse.db_url import connect
+
+
+def connect_db_from_url(url, **connect_params):
+    return connect(url, unquote_password=True, **connect_params)
 
 
 def load_object(path):
@@ -180,19 +187,43 @@ def json_dumps(obj):
 
 
 def json_loads(data):
-    if isinstance(data, str):
+    if isinstance(data, (str, bytes)):
         return json.loads(data)
     else:
         return data
 
 
-def dump_macro_map(macro_map):
-    """
-    把模板转换成字符串
-    :param macro_map:
-    :return:
-    """
+def walk_modules(path):
+    mods = []
+    mod = importlib.import_module(path)
+    mods.append(mod)
+    if hasattr(mod, '__path__'):
+        for _, sub_path, is_pkg in iter_modules(mod.__path__):
+            full_path = path + '.' + sub_path
+            if is_pkg:
+                mods += walk_modules(full_path)
+            else:
+                sub_mod = importlib.import_module(full_path)
+                mods.append(sub_mod)
+    return mods
 
+
+def load_subclasses(root_modules, base_class):
+    result = []
+    for root_module in root_modules:
+        for m in walk_modules(root_module):
+            for obj in vars(m).values():
+                if inspect.isclass(obj) and issubclass(obj, base_class) and obj.__module__ == m.__name__:
+                    result.append(obj)
+    return result
+
+
+def get_subclasses(cls):
+    subclasses = []
+    for subclass in cls.__subclasses__():
+        subclasses.append(subclass)
+        subclasses.extend(get_subclasses(subclass))
+    return subclasses
     pass
 
 
