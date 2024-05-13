@@ -9,18 +9,14 @@ from data_watchtower.core.macro import DEFAULT_MACRO_CONFIG
 
 
 class Watchtower(object):
-
-    def __init__(self, name, data_loader, **params):
+    def __init__(self, name, data_loader, custom_macro_map=None, **params):
         """
 
         :param name:
         :param data_loader:
-        :param params:
+        :param params: schedule, validator_success_method, success_method
         """
-        custom_macro_map = params.get('custom_macro_map')  # 只是运行的时候使用,不会保存
-        validator_success_method = params.get('validator_success_method', 'all')
-        success_method = params.get('success_method', None)
-        extra = params.get('extra', {})
+        custom_macro_map = custom_macro_map or {}  # 只是运行的时候使用,不会保存
         self.params = params
         self._data_loader = data_loader  # 原本的loader,参数可能包含宏
         self._data_loader_meta = data_loader.to_dict()  # 原本的loader,参数可能包含宏
@@ -28,20 +24,32 @@ class Watchtower(object):
         self._validators_meta = []
         self.name = name
         self.metrics = {}
-        custom_macro_map = custom_macro_map or {}
         self.macro_map = copy.deepcopy(DEFAULT_MACRO_CONFIG)
         self.macro_map.update(custom_macro_map)
         self.macro_template = MacroTemplate(self.macro_map)
-        self.extra = extra
+        # 回填默认值
+        self.params['schedule'] = self.schedule
+        self.params['validator_success_method'] = self.validator_success_method
+        self.params['success_method'] = self.success_method
 
-        self.validator_success_method = validator_success_method
+    @property
+    def schedule(self):
+        return self.params.get('schedule')
+
+    @property
+    def validator_success_method(self):
+        return self.params.get('validator_success_method', 'all')
+
+    @property
+    def success_method(self):
+        success_method = self.params.get('success_method')
         if success_method is None:
-            if len(self.macro_template.get_used_macro_maps([name])) > 0:
-                self.success_method = 'all'
+            if len(self.macro_template.get_used_macro_maps([self.name])) > 0:
+                return 'all'
             else:
-                self.success_method = 'last'
+                return 'last'
         else:
-            self.success_method = success_method
+            return success_method
 
     def set_custom_macro(self, **custom_macro_map):
         self.macro_map.update(custom_macro_map)
@@ -50,22 +58,21 @@ class Watchtower(object):
     @classmethod
     def from_dict(cls, data):
         data_loader = spawn_data_loader_from_dict(data.get('data_loader', {}))
-        validator_success_method = data.get('validator_success_method', 'all')
-        inst = cls(
-            name=data['name'], data_loader=data_loader,
-            validator_success_method=validator_success_method,
-        )
+        params = data.get('params', {})
+        inst = cls(name=data['name'], data_loader=data_loader, **params)
         for validator in data.get('validators', []):
             inst.add_validator(spawn_validator_from_dict(validator))
         return inst
 
     def to_dict(self):
+        params = {
+
+        }
         result = dict(
             name=self.name,
             data_loader=json_dumps(self.get_loader_meta()),
             validators=json_dumps(self.get_validator_meta()),
-            validator_success_method=self.validator_success_method,
-            success_method=self.success_method,
+            params=json_dumps(self.params),
         )
         return result
 
@@ -147,7 +154,6 @@ class Watchtower(object):
             metrics=self.metrics,
             validators_result=validators_result,
         )
-        result.update(self.extra)
         return result
 
     @classmethod

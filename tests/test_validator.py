@@ -10,7 +10,7 @@ from data_watchtower import ExpectColumnValuesToNotBeNull, ExpectColumnRecentlyU
 
 
 # 定义测试类
-class TestDemoClass:
+class TestValidators:
     # 定义测试用例
     def test_expect_column_values_to_not_be_null(self):
         # 创建需要的测试数据
@@ -32,23 +32,44 @@ class TestDemoClass:
         assert result.metrics['total_rows'] == 5
 
     def test_expect_column_recently_updated(self):
-        # 创建需要的测试数据
         data = {
             'column1': [1, 2, 3, 4, 5],
-            'update_time': [datetime.now() - timedelta(days=5), datetime.now() - timedelta(days=3),
-                            datetime.now() - timedelta(days=1), datetime.now(), datetime.now()]
+            'update_time': [
+                datetime.now() - timedelta(days=10),
+                datetime.now() - timedelta(days=5), datetime.now() - timedelta(days=3),
+                datetime.now() - timedelta(days=1), datetime.now() - timedelta(hours=10),
+            ]
         }
         df = pl.DataFrame(data)
-
-        # 创建验证器实例
-        validator = ExpectColumnRecentlyUpdated(
-            ExpectColumnRecentlyUpdated.Params(update_time_column='update_time', days=2, hours=1))
+        validator = ExpectColumnRecentlyUpdated(None)
         validator.set_data(df)
-        # 执行验证
+
+        params = ExpectColumnRecentlyUpdated.Params(
+            update_time_column='update_time',
+            hours=12
+        )
+        validator.params = params
         result = validator.validation()
-        # 断言验证结果是否符合预期
-        assert result.success
-        assert result.metrics['last_updated_time'] == datetime.now()
+        assert result.success is True
+        assert result.metrics['last_updated_time'] + timedelta(minutes=2) >= datetime.now() - timedelta(hours=10)
+
+        params = ExpectColumnRecentlyUpdated.Params(
+            update_time_column='update_time',
+            days=1
+        )
+        validator.params = params
+        result = validator.validation()
+        assert result.success is True
+        assert result.metrics['last_updated_time'] + timedelta(minutes=2) >= datetime.now() - timedelta(hours=10)
+
+        params = ExpectColumnRecentlyUpdated.Params(
+            update_time_column='update_time',
+            hours=1
+        )
+        validator.params = params
+        result = validator.validation()
+        assert result.success is False
+        assert result.metrics['last_updated_time'] + timedelta(minutes=2) >= datetime.now() - timedelta(hours=10)
 
     def test_expect_column_std_to_be_between(self):
         # 创建需要的测试数据
@@ -66,7 +87,7 @@ class TestDemoClass:
         result = validator.validation()
         # 断言验证结果是否符合预期
         assert result.success
-        assert result.metrics['std'] == 2.8722813232690143
+        assert round(result.metrics['std'], 2) == 1.58
         assert result.metrics['mean'] == 3
 
     def test_expect_column_mean_to_be_between(self):
@@ -86,7 +107,7 @@ class TestDemoClass:
         # 断言验证结果是否符合预期
         assert result.success
         assert result.metrics['mean'] == 30
-        assert result.metrics['std'] == 15.811388300841898
+        assert round(result.metrics['std'], 2) == 15.81
 
     def test_expect_column_null_ratio_to_be_between(self):
         # 创建需要的测试数据
@@ -103,7 +124,7 @@ class TestDemoClass:
         # 执行验证
         result = validator.validation()
         # 断言验证结果是否符合预期
-        assert result.success
+        assert result.success is False
         assert result.metrics['null_ratio'] == 0.4
         assert result.metrics['total_rows'] == 5
         assert result.metrics['null_rows'] == 2

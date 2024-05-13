@@ -38,7 +38,6 @@ class DbServices(object):
         item = model.to_dict()
         if item is not None:
             item['data_loader'] = json_loads(item['data_loader'])
-            # item['validators'] = json_loads(item['validators'])
         validators = ValidatorRelationModel.select().where(ValidatorRelationModel.wt_name == name)
         item['validators'] = []
         for validator_item in validators:
@@ -60,11 +59,12 @@ class DbServices(object):
             WatchtowerModel.success,
             WatchtowerModel.run_time,
             WatchtowerModel.data_loader,
-            WatchtowerModel.success_method,
-            WatchtowerModel.validator_success_method,
+            WatchtowerModel.params,
         )
         for item in query:
-            result.append(item.to_dict(fields_from_query=query))
+            row = item.to_dict(fields_from_query=query)
+            row['params'] = json_loads(row['params'])
+            result.append(row)
         return result
 
     def add_watchtower(self, watchtower):
@@ -89,25 +89,25 @@ class DbServices(object):
             logger.warning('add watchtower error!. msg:%s' % str(e))
             return
 
-    def update_watchtower(self, wt_name, **item):
+    def update_watchtower(self, name, **item):
         if len(item) == 0:
             return 0
         update_time = datetime.datetime.now()
         with self.database.atomic():
-            wt = WatchtowerModel.select().where(WatchtowerModel.name == wt_name).get()
+            wt = WatchtowerModel.select().where(WatchtowerModel.name == name).get()
             if wt:
-                if 'validators' in item:
-                    validators = []
-                    for validator_item in wt.get_validator_meta():
-                        inst = ValidatorRelationModel(
-                            wt_name=wt.name,
-                            validator=validator_item['__class__'],
-                            params=json_dumps(validator_item['params']),
-                        )
-                        validators.append(inst)
-                    ValidatorRelationModel.bulk_create(validators, batch_size=100)
+                # if 'validators' in item:
+                #     validators = []
+                #     for validator_item in wt.get_validator_meta():
+                #         inst = ValidatorRelationModel(
+                #             wt_name=wt.name,
+                #             validator=validator_item['__class__'],
+                #             params=json_dumps(validator_item['params']),
+                #         )
+                #         validators.append(inst)
+                #     ValidatorRelationModel.bulk_create(validators, batch_size=100)
                 if 'data_loader' in item:
-                    wt.validators = json_dumps(item.pop('data_loader'))
+                    wt.data_loader = json_dumps(item.pop('data_loader'))
                 for k, v in item.items():
                     setattr(wt, k, v)
                 wt.update_time = update_time

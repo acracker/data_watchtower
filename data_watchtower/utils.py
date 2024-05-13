@@ -187,6 +187,8 @@ def json_dumps(obj):
 
 
 def json_loads(data):
+    if not data:
+        return None
     if isinstance(data, (str, bytes)):
         return json.loads(data)
     else:

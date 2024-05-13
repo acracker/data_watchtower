@@ -6,4 +6,4 @@ from .core.data_loaders import *
 from .core.validators import *
 from .model.services import DbServices
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'

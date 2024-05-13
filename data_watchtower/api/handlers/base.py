@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import logging
 import tornado.web
 from data_watchtower.utils import json_dumps, json_loads
+
+logger = logging.getLogger(__name__)
 
 
 class BaseHandler(tornado.web.RequestHandler):
     def _handle_request_exception(self, e):
+        logger.exception(e)
         self.json(error={'err_code': 1, 'err_msg': str(e)})
         self.finish()
         return
@@ -32,7 +35,7 @@ class BaseHandler(tornado.web.RequestHandler):
             self.set_header("Access-Control-Allow-Methods", "GET,POST,PUT,POST,DELETE,OPTIONS")
 
     def options(self, *args, **kwargs):
-        return self.write_json()
+        return self.json()
 
 
     def initialize(self, *args, **kwargs):

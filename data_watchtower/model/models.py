@@ -44,9 +44,7 @@ class WatchtowerModel(BaseModel):
     success = BooleanField(null=True)  # success
     run_time = DateTimeField(null=True)  # 最后一次运行的时间
     data_loader = TextField()
-    # validators = TextField()
-    success_method = CharField(max_length=64)
-    validator_success_method = CharField(max_length=64, default='all', help_text='option: any, all')
+    params = TextField()
     update_time = DateTimeField(default=datetime.datetime.now)
     create_time = DateTimeField(default=datetime.datetime.now)
 
