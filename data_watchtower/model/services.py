@@ -36,6 +36,7 @@ class DbServices(object):
     def get_watchtower(self, name):
         model = WatchtowerModel.get(WatchtowerModel.name == name).get()
         item = model.to_dict()
+        item['params'] = json_loads(item['params'])
         if item is not None:
             item['data_loader'] = json_loads(item['data_loader'])
         validators = ValidatorRelationModel.select().where(ValidatorRelationModel.wt_name == name)
