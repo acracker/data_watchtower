@@ -1,0 +1,48 @@
+[tool.poetry]
+package-mode = true
+name = "data-watchtower"
+version = "0.0.4"
+description = "Data quality inspection tool. Identify issues before your CTO detects them!"
+authors = ["acracker <acracker@163.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/acracker/data_watchtower"
+
+
+[tool.poetry.dependencies]
+python = "^3.7.1"
+attrs = "^23.2.0"
+peewee = "^3.17.3"
+shortuuid = "^1.0.13"
+tornado = [
+    { version = "^6.2", python = "<3.8" },
+    { version = "^6.4", python = ">=3.8" }
+]
+pandas = "^1.3.0"
+polars = [
+    { version = "0.18.4", python = "<3.8" },
+    { version = "^0.20.23", python = ">=3.8" }
+]
+pyarrow = "^12.0.1"
+connectorx = [
+    { version = "0.3.1", python = "<3.8" },
+    { version = "^0.3.2", python = ">=3.8" }
+]
+apischema = "^0.18.1"
+
+
+[tool.poetry.group.dev.dependencies]
+faker = "18.13.0"
+pytest = "^7.4.4"
+psycopg2-binary = "^2.9.9"
+pymysql = "^1.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[[tool.poetry.source]]
+name = "tsinghua"
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
+priority = "primary"
