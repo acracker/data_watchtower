@@ -1,6 +1,5 @@
 import os
 import pytest
-from unittest.mock import MagicMock, patch
 import random
 import datetime
 from faker import Faker
@@ -136,5 +135,3 @@ def test_case1():
     assert wt_name == watchtower.name
     return
 
-
-X

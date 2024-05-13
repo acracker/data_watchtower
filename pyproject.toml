@@ -1,7 +1,7 @@
 [tool.poetry]
 package-mode = true
 name = "data-watchtower"
-version = "0.0.4"
+version = "0.0.5"
 description = "Data quality inspection tool. Identify issues before your CTO detects them!"
 authors = ["acracker <acracker@163.com>"]
 license = "MIT"
