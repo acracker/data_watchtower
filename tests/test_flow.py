@@ -8,17 +8,17 @@ from playhouse.db_url import connect
 from data_watchtower import (DbServices, Watchtower, DatabaseLoader,
                              ExpectRowCountToBeBetween, ExpectColumnValuesToNotBeNull)
 
+dw_test_data_db_url = os.getenv('DW_TEST_DATA_DB_URL', 'sqlite:///test.db')
+dw_backend_db_url = os.getenv('DW_BACKEND_DB_URL', "sqlite:///data.db")
 NUM_OF_STUDENTS = 20
 NUM_OF_DAY = 10
 
-dw_test_data_db_url = os.getenv('DW_TEST_DATA_DB_URL', 'sqlite:///test.db')
-dw_backend_db_url = os.getenv('DW_BACKEND_DB_URL', "sqlite:///data.db")
-database = connect(dw_test_data_db_url)
+database_proxy = DatabaseProxy()
 
 
 class BaseModel(Model):
     class Meta:
-        database = database
+        database = database_proxy
 
 
 class Student(BaseModel):
@@ -34,7 +34,10 @@ class Score(BaseModel):
     math = IntegerField(null=True)
 
 
-def gen_data():
+def setup_module():
+    # print("初始化数据")
+    database = connect(dw_test_data_db_url)
+    database_proxy.initialize(database)
     with database:
         database.drop_tables([Student, Score])
         database.create_tables([Student, Score])
@@ -69,18 +72,81 @@ def gen_data():
                 english=english,
                 math=math,
             )
-    return days
 
 
-gen_data()
+def teardown_module():
+    # print('测试模块清理')
+    pass
 
 
-def test_gen_data():
+@pytest.fixture
+def custom_macro_map():
+    return {
+        'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
+        'start_date': '2024-04-01',
+        'column': 'name',
+    }
+
+
+@pytest.fixture
+def db_svr():
+    return DbServices(dw_backend_db_url)
+
+
+def test_demo_data():
     assert Student.select().count() == NUM_OF_STUDENTS
-    # 这里可以根据实际情况增加更详细的验证，比如Score表的数据验证
+    assert Score.select().count() == NUM_OF_DAY * (NUM_OF_STUDENTS - 1)
 
 
-def test_case1():
+def test_create_table(db_svr):
+    db_svr.create_tables()
+    assert len(db_svr.get_watchtowers()) >= 0
+
+
+def test_watchtower_crud(db_svr, custom_macro_map):
+    wt_name = 'score of ${today}'
+    query = "SELECT * FROM score where date='${today}'"
+    params = dict(
+        schedule="12:00",
+        validator_success_method='all',
+        success_method='all',
+    )
+    connection = dw_test_data_db_url
+    # 先删除存在的
+    db_svr.delete_watchtower(wt_name)
+
+    data_loader = DatabaseLoader(query=query, connection=connection)
+    watchtower = Watchtower(name=wt_name, data_loader=data_loader, custom_macro_map=custom_macro_map, **params)
+    db_svr.add_watchtower(watchtower)
+    wt = db_svr.get_watchtower(wt_name)
+    assert wt['name'] == wt_name
+    assert wt['data_loader']['__class__'] == DatabaseLoader.module_path()
+    assert wt['data_loader']['query'] == query
+    assert wt['data_loader']['connection'] == connection
+    assert wt['params'] == params
+
+    params = dict(
+        schedule="13:00",
+        validator_success_method='any',
+        success_method='all',
+    )
+    query = "SELECT * FROM score where date='${today}' and 1=1 "
+    data_loader = DatabaseLoader(query=query, connection=connection)
+
+    db_svr.update_watchtower(name=wt_name, data_loader=data_loader, params=params)
+    wt = db_svr.get_watchtower(wt_name)
+    assert wt['name'] == wt_name
+    assert wt['data_loader']['__class__'] == DatabaseLoader.module_path()
+    assert wt['data_loader']['query'] == query
+    assert wt['data_loader']['connection'] == connection
+    assert wt['params'] == params
+
+    assert db_svr.delete_watchtower(wt_name) == 1
+    wt = db_svr.get_watchtower(wt_name)
+    assert wt is None
+
+
+def test_case1(db_svr):
     wt_name = 'score of ${today}'
     # 自定义宏模板
     custom_macro_map = {
@@ -91,7 +157,6 @@ def test_case1():
     # 设置数据加载器,用来加载需要校验的数据
     query = "SELECT * FROM score where date='${today}'"
     data_loader = DatabaseLoader(query=query, connection=dw_test_data_db_url)
-    data_loader.load()
     # 创建监控项
     watchtower = Watchtower(name=wt_name, data_loader=data_loader, custom_macro_map=custom_macro_map)
     # 添加校验器
@@ -107,15 +172,10 @@ def test_case1():
     assert result['name'] == watchtower.macro_template.apply_string(watchtower.name)
     assert wt_name == watchtower.name
 
-    db_svr = DbServices(dw_backend_db_url)
-    # 创建表
-    db_svr.create_tables()
     # 保存监控配置
     db_svr.add_watchtower(watchtower)
     # 保存监控结果
     db_svr.save_result(watchtower, result)
-    # 重新计算监控项的成功状态
-    db_svr.update_watchtower_success_status(watchtower)
 
     item = db_svr.get_watchtower(wt_name)
     watchtower = Watchtower.from_dict(item)
@@ -134,4 +194,3 @@ def test_case1():
     assert result['name'] == watchtower.macro_template.apply_string(watchtower.name)
     assert wt_name == watchtower.name
     return
-

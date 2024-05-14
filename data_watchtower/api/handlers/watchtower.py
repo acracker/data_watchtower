@@ -43,7 +43,6 @@ class WatchtowerHandler(BaseHandler):
         return self.json([])
 
 
-
 class WatchtowerListHandler(BaseHandler):
     def get(self):
         data = self.database.get_watchtowers()
@@ -60,6 +59,28 @@ class WatchtowerListHandler(BaseHandler):
                 for k, v in item['params'].items():
                     item[k] = v
                 del item['params']
+        result = dict(
+            records=data
+        )
+        self.json(result)
+        return
+
+    def post(self):
+        return self.get()
+
+
+class DataLoaderListHandler(BaseHandler):
+    def get(self):
+        name = self.get_argument('name')
+        data = []
+        data_loaders = get_registered_data_loaders()
+        for cls in data_loaders:
+            row = dict(
+                name=cls.__name__,
+                module_path=cls.module_path(),
+                schema=cls.to_schema(),
+            )
+            data.append(row)
         result = dict(
             records=data
         )

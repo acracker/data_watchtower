@@ -65,13 +65,10 @@ class Watchtower(object):
         return inst
 
     def to_dict(self):
-        params = {
-
-        }
         result = dict(
             name=self.name,
             data_loader=json_dumps(self.get_loader_meta()),
-            validators=json_dumps(self.get_validator_meta()),
+            # validators=json_dumps(self.get_validator_meta()),
             params=json_dumps(self.params),
         )
         return result

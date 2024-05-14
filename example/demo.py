@@ -109,6 +109,7 @@ def main():
     db_svr.update_watchtower_success_status(wt)
 
     wd = db_svr.get_watchtower(wt_name)
+    validators = db_svr.get_validators_of_watchtower(wt_name)
     return
 
 

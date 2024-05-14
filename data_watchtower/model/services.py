@@ -3,8 +3,9 @@
 import logging
 import datetime
 import shortuuid
-from peewee import fn, JOIN
+from peewee import fn, JOIN, DoesNotExist
 from peewee import IntegrityError
+from data_watchtower import DataLoader
 from data_watchtower.model.models import ValidationDetailModel, WatchtowerModel, database_proxy, ValidatorRelationModel
 from data_watchtower.utils import json_dumps, json_loads, connect_db_from_url
 
@@ -34,11 +35,13 @@ class DbServices(object):
                     self.database.create_tables([model])
 
     def get_watchtower(self, name):
-        model = WatchtowerModel.get(WatchtowerModel.name == name).get()
+        try:
+            model = WatchtowerModel.get(WatchtowerModel.name == name).get()
+        except DoesNotExist:
+            return None
         item = model.to_dict()
         item['params'] = json_loads(item['params'])
-        if item is not None:
-            item['data_loader'] = json_loads(item['data_loader'])
+        item['data_loader'] = json_loads(item['data_loader'])
         validators = ValidatorRelationModel.select().where(ValidatorRelationModel.wt_name == name)
         item['validators'] = []
         for validator_item in validators:
@@ -97,18 +100,13 @@ class DbServices(object):
         with self.database.atomic():
             wt = WatchtowerModel.select().where(WatchtowerModel.name == name).get()
             if wt:
-                # if 'validators' in item:
-                #     validators = []
-                #     for validator_item in wt.get_validator_meta():
-                #         inst = ValidatorRelationModel(
-                #             wt_name=wt.name,
-                #             validator=validator_item['__class__'],
-                #             params=json_dumps(validator_item['params']),
-                #         )
-                #         validators.append(inst)
-                #     ValidatorRelationModel.bulk_create(validators, batch_size=100)
                 if 'data_loader' in item:
-                    wt.data_loader = json_dumps(item.pop('data_loader'))
+                    data_loader = item.pop('data_loader')
+                    if isinstance(data_loader, DataLoader):
+                        data_loader = data_loader.to_dict()
+                    wt.data_loader = json_dumps(data_loader)
+                if 'params' in item:
+                    wt.params = json_dumps(item.pop('params'))
                 for k, v in item.items():
                     setattr(wt, k, v)
                 wt.update_time = update_time
@@ -116,13 +114,13 @@ class DbServices(object):
             else:
                 return 0
 
-    def delete_watchtower(self, watchtower):
+    def delete_watchtower(self, name):
         with self.database.atomic():
-            wt = WatchtowerModel.select().where(WatchtowerModel.name == watchtower.wt_name).get()
-            if wt:
-                return wt.delete_instance()
-            else:
+            try:
+                wt = WatchtowerModel.select().where(WatchtowerModel.name == name).get()
+            except DoesNotExist:
                 return 0
+            return wt.delete_instance()
 
     def save_result(self, watchtower, result):
         update_time = datetime.datetime.now()
@@ -212,3 +210,19 @@ class DbServices(object):
             params=params,
         )
         return inst.save(force_insert=True)
+
+    def get_validators_of_watchtower(self, name):
+        """
+        获取watchtower下的所有validator
+        :param name:
+        :return:
+        """
+        validators = ValidatorRelationModel.select().where(ValidatorRelationModel.wt_name == name)
+        result = []
+        for validator_item in validators:
+            validator = dict(
+                params=json_loads(validator_item.params),
+                __class__=validator_item.validator,
+            )
+            result.append(validator)
+        return result
