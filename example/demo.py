@@ -77,8 +77,8 @@ def main():
     wt_name = 'score of ${today}'
     # 自定义宏模板
     custom_macro_map = {
-        'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
-        'start_date': '2024-04-01',
+        # 'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
+        # 'start_date': '2024-04-01',
         'column': 'name',
     }
     # 设置数据加载器,用来加载需要校验的数据

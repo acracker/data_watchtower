@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import logging
 import datetime
 from data_watchtower.utils import load_object
@@ -36,7 +37,8 @@ DEFAULT_MACRO_CONFIG = {
 
 }
 try:
-    custom_macro = load_object('dw_custom.macros:DEFAULT_MACRO_CONFIG')
+    dw_custom_macro_config = os.getenv("DW_CUSTOM_MACRO_CONFIG", 'dw_custom.macros:DEFAULT_MACRO_CONFIG')
+    custom_macro = load_object(dw_custom_macro_config)
     DEFAULT_MACRO_CONFIG.update(custom_macro)
     logger.info('custom macros loaded. count:%s' % len(custom_macro))
 except (ModuleNotFoundError, NameError):

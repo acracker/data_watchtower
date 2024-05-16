@@ -1,14 +1,43 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
 import datetime
+from functools import lru_cache
 from attrs import define, field
 from .base import Validator, ValidationResult
+
+from ..utils import get_subclasses, load_subclasses
+
+CUSTOM_VALIDATOR_PATH = os.getenv("DW_CUSTOM_VALIDATOR_PATH", "dw_custom.data_loaders")
+
+
+@lru_cache()
+def get_registered_validator_maps():
+    custom_path = CUSTOM_VALIDATOR_PATH.split(";")
+    subclasses = get_subclasses(Validator)
+    try:
+        custom_subclasses = load_subclasses(custom_path, Validator)
+    except ModuleNotFoundError:
+        custom_subclasses = []
+    result = {}
+    for cls in (subclasses + custom_subclasses):
+        cls_name = cls.__name__
+        if cls_name in result:
+            raise ValueError("Duplicate data loader name: %s" % cls_name)
+        else:
+            result[cls.__name__] = cls
+    return result
+
+
+def get_registered_validators():
+    result = get_registered_validator_maps()
+    return list(result.values())
 
 
 class ExpectColumnValuesToNotBeNull(Validator):
     @define()
     class Params:
-        column = field()
+        column = field(type=str)
 
     def __init__(self, params: Params):
         super().__init__(params)
@@ -33,7 +62,7 @@ class ExpectColumnRecentlyUpdated(Validator):
 
     @define()
     class Params:
-        update_time_column = field(metadata={'help': 'update_time字段名称'})
+        update_time_column = field(type=str, metadata={'help': 'update_time字段名称'})
         days = field(default=0, type=int)
         hours = field(default=0, type=int)
 

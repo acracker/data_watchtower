@@ -72,26 +72,25 @@ class DbServices(object):
         return result
 
     def add_watchtower(self, watchtower):
-        update_time = datetime.datetime.now()
-        try:
-            with self.database.atomic():
-                item = watchtower.to_dict()
-                item['create_time'] = update_time
-                item['update_time'] = update_time
-                wt = WatchtowerModel(**item)
-                wt.save(force_insert=True)
-                validators = []
-                for validator_item in watchtower.get_validator_meta():
-                    inst = ValidatorRelationModel(
-                        wt_name=watchtower.name,
-                        validator=validator_item['__class__'],
-                        params=json_dumps(validator_item['params']),
-                    )
-                    validators.append(inst)
-                ValidatorRelationModel.bulk_create(validators, batch_size=100)
-        except IntegrityError as e:
-            logger.warning('add watchtower error!. msg:%s' % str(e))
+        if WatchtowerModel.select().where(WatchtowerModel.name == watchtower.name).exists():
+            logger.warning('watchtower %s already exists' % watchtower.name)
             return
+        update_time = datetime.datetime.now()
+        with self.database.atomic():
+            item = watchtower.to_dict()
+            item['create_time'] = update_time
+            item['update_time'] = update_time
+            wt = WatchtowerModel(**item)
+            wt.save(force_insert=True)
+            validators = []
+            for validator_item in watchtower.get_validator_meta():
+                inst = ValidatorRelationModel(
+                    wt_name=watchtower.name,
+                    validator=validator_item['__class__'],
+                    params=json_dumps(validator_item['params']),
+                )
+                validators.append(inst)
+            ValidatorRelationModel.bulk_create(validators, batch_size=100)
 
     def update_watchtower(self, name, **item):
         if len(item) == 0:
@@ -204,11 +203,28 @@ class DbServices(object):
         self.update_watchtower(watchtower.name, success=success, run_time=run_time)
 
     def add_validator_to_watchtower(self, wt_name, validator, params):
+        """
+        将验证者添加到观察塔中。
+
+        该方法创建一个包含验证者与观察塔关系的新模型实例，并将其保存到数据库中。
+
+        参数:
+        - wt_name (str): 观察塔的名称。
+        - validator (str): 验证者的标识符。
+        - params (dict): 配置参数，用于描述验证者与观察塔之间的关系。
+
+        返回:
+        - 保存操作的结果，通常为True（如果保存成功）或False（如果保存失败）。
+        """
+
+        # 创建ValidatorRelationModel实例，用于表示观察塔和验证者之间的关系
         inst = ValidatorRelationModel(
             wt_name=wt_name,
             validator=validator,
             params=params,
         )
+
+        # 将实例强制插入到数据库并返回保存的结果
         return inst.save(force_insert=True)
 
     def get_validators_of_watchtower(self, name):
