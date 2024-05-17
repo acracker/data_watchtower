@@ -38,14 +38,14 @@ connectorx = [
 apischema = "^0.18.1"
 
 
-#[tool.poetry.group.dev.dependencies]
-#faker = "18.13.0"
-#pytest = [
-#    { version = "^7.4.4", python = "<3.8" },
-#    { version = "^8.2.0", python = ">=3.8" }
-#]
-#psycopg2-binary = "^2.9.9"
-#pymysql = "^1.1.0"
+[tool.poetry.group.dev.dependencies]
+faker = "18.13.0"
+pytest = [
+    { version = "^7.4.4", python = "<3.8" },
+    { version = "^8.2.0", python = ">=3.8" }
+]
+psycopg2-binary = "^2.9.9"
+pymysql = "^1.1.0"
 
 [build-system]
 requires = ["poetry-core"]
