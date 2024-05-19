@@ -58,16 +58,30 @@ class DbServices(object):
         :return:
         """
         result = []
+
+        join_query = ValidatorRelationModel.select(ValidatorRelationModel.wt_name,
+                                                   fn.COUNT(ValidatorRelationModel.validator).alias(
+                                                       'validator_count')).group_by(
+            ValidatorRelationModel.wt_name).alias('join_query')
+        predicate = (WatchtowerModel.name == join_query.c.wt_name)
         query = WatchtowerModel.select(
             WatchtowerModel.name,
             WatchtowerModel.success,
             WatchtowerModel.run_time,
             WatchtowerModel.data_loader,
             WatchtowerModel.params,
+            join_query.c.validator_count,
+        ).join(
+            join_query, on=predicate
         )
         for item in query:
             row = item.to_dict(fields_from_query=query)
             row['params'] = json_loads(row['params'])
+            try:
+                # 不确定这么取validator_count的值是否合理，先这样
+                row['validator_count'] = item.validatorrelationmodel.validator_count
+            except AttributeError:
+                row['validator_count'] = 0
             result.append(row)
         return result
 
@@ -237,8 +251,17 @@ class DbServices(object):
         result = []
         for validator_item in validators:
             validator = dict(
+                id=validator_item.id,
                 params=json_loads(validator_item.params),
                 __class__=validator_item.validator,
             )
             result.append(validator)
         return result
+
+    def remove_validator_from_watchtower(self, wt_name, validator_id):
+        inst = ValidatorRelationModel(
+            wt_name=wt_name,
+            id=validator_id,
+        )
+
+        return inst.delete_instance()

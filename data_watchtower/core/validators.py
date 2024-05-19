@@ -266,7 +266,7 @@ class ExpectColumnDistinctValuesToContainSet(Validator):
     class Params:
         column = field(type=str, metadata={'help': 'The column name'})
         value_set = field(
-            type=set, metadata={'help': 'A set of objects used for comparison.'},
+            type=list, metadata={'help': 'A set of objects used for comparison.'},
             converter=lambda x: set(x),
         )
 
@@ -299,7 +299,7 @@ class ExpectColumnDistinctValuesToEqualSet(Validator):
     class Params:
         column = field(type=str, metadata={'help': 'The column name'})
         value_set = field(
-            type=set, metadata={'help': 'A set of objects used for comparison.'},
+            type=list, metadata={'help': 'A set of objects used for comparison.'},
             converter=lambda x: set(x),
         )
 
@@ -334,7 +334,7 @@ class ExpectColumnDistinctValuesToBeInSet(Validator):
     class Params:
         column = field(type=str, metadata={'help': 'The column name'})
         value_set = field(
-            type=set, metadata={'help': 'A set of objects used for comparison.'},
+            type=list, metadata={'help': 'A set of objects used for comparison.'},
             converter=lambda x: set(x),
         )
 

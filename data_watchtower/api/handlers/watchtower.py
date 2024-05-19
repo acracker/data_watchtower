@@ -51,11 +51,12 @@ class WatchtowerListHandler(BaseHandler):
             data_loader = item['data_loader']
             if isinstance(data_loader, dict):
                 item['data_loader'] = data_loader.pop('__class__')
-                item['data_loader_cls'] = item['data_loader'].split(':')[-1]
-                item['data_loader_params'] = data_loader
+                item['cls_name'] = item['data_loader'].split(':')[-1]
+                # item['data_loader_params'] = data_loader
+                item['cls_params'] = data_loader
                 data_loader_maps = get_registered_data_loader_maps()
                 # todo 如果data_loader被删除， 则会报错
-                data_loader_cls = data_loader_maps[item['data_loader_cls']]
+                data_loader_cls = data_loader_maps[item['cls_name']]
                 item['data_loader_schema'] = data_loader_cls.to_schema()
             if isinstance(item.get('params'), dict):
                 for k, v in item['params'].items():
@@ -72,6 +73,16 @@ class WatchtowerListHandler(BaseHandler):
 
 
 class ValidatorRelationHandler(BaseHandler):
+    def get(self):
+        name = self.get_argument('name')
+        validators = self.database.get_validators_of_watchtower(name)
+        result = []
+        for item in validators:
+            item['cls_name'] = item['__class__'].split(':')[-1]
+            item['cls_params'] = item.pop('params')
+            result.append(item)
+        self.json(dict(records=result))
+
     def post(self):
         """
         处理POST请求，用于向数据库中的watchtower添加新的validator。
@@ -119,4 +130,11 @@ class ValidatorRelationHandler(BaseHandler):
         self.database.add_validator_to_watchtower(name, validator, params)
 
         # 返回成功的JSON响应
+        return self.json()
+
+    def delete(self):
+        body = self.json_loads(self.request.body)
+        name = body['name']  # watchtower的名称
+        validator_id = body['validator_id']
+        self.database.remove_validator_from_watchtower(name, validator_id)
         return self.json()
