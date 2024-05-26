@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 import os
 import datetime
+import logging
 from functools import lru_cache
+import arrow
 from attrs import define, field
 from .base import Validator, ValidationResult
 
 from ..utils import get_subclasses, load_subclasses
 
 CUSTOM_VALIDATOR_PATH = os.getenv("DW_CUSTOM_VALIDATOR_PATH", "dw_custom.data_loaders")
+logger = logging.getLogger(__name__)
 
 
 @lru_cache()
@@ -72,6 +75,12 @@ class ExpectColumnRecentlyUpdated(Validator):
 
     @staticmethod
     def value_to_datetime(value):
+        if isinstance(value, datetime.datetime):
+            return value
+        try:
+            value = arrow.get(value).datetime.replace(tzinfo=None)
+        except Exception as e:
+            logger.warning("value_to_datetime error: %s", exc_info=e)
         return value
 
     def _validation(self):

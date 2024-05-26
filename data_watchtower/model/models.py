@@ -9,11 +9,7 @@ from playhouse.sqlite_ext import TextField
 from ..utils import json_loads
 
 database_proxy = DatabaseProxy()
-import logging
 
-logger = logging.getLogger('peewee')
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
 
 class BaseModel(Model):
 

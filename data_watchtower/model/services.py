@@ -85,6 +85,9 @@ class DbServices(object):
             result.append(row)
         return result
 
+    def watchtower_exists(self, name):
+        return WatchtowerModel.select().where(WatchtowerModel.name == name).exists()
+
     def add_watchtower(self, watchtower):
         if WatchtowerModel.select().where(WatchtowerModel.name == watchtower.name).exists():
             logger.warning('watchtower %s already exists' % watchtower.name)
