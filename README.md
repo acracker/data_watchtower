@@ -1,103 +1,104 @@
-# data_watchtower
+# data-watchtower
 
-数据监控校验工具
+A data verification tool.
+Detect issues before your CTO does.
 
-在你的CTO发现问题前, 发现问题
+## Installation
 
-## 安装
-
+Install via pip:
 ```
 pip install data-watchtower
 ```
 
-## 数据加载器
+## Data Loader
 
-加载数据到内存中,供校验器使用
+Loads data into memory for validation by checkers.
 
-## 校验器
+## Validators
 
-校验加载器加载的数据是否符合预期
+Validate whether the loaded data meets expectations.
 
-### 内置加载器
+### Built-in Validators
 
-* ExpectColumnValuesToNotBeNull
-* ExpectColumnRecentlyUpdated
-* ExpectColumnStdToBeBetween
-* ExpectColumnMeanToBeBetween
-* ExpectColumnNullRatioToBeBetween
-* ExpectRowCountToBeBetween
-* ExpectColumnDistinctValuesToContainSet
-* ExpectColumnDistinctValuesToEqualSet
-* ExpectColumnValuesToNotBeNull
-* ExpectColumnDistinctValuesToBeInSet
+- ExpectColumnValuesToNotBeNull
+- ExpectColumnRecentlyUpdated
+- ExpectColumnStdToBeBetween
+- ExpectColumnMeanToBeBetween
+- ExpectColumnNullRatioToBeBetween
+- ExpectRowCountToBeBetween
+- ExpectColumnDistinctValuesToContainSet
+- ExpectColumnDistinctValuesToEqualSet
+- More...
 
-### 自定义加载器
+### Custom Loaders
 
-。。。
+Support for tailor-made loaders to handle specific data sources.
 
-## 宏
+## Macros
 
-通过自定义宏, 可以在监控项中引用一些自定义的变量, 比如日期, 配置文件等
+Custom macros enable referencing variables like dates or config files within monitoring tasks.
 
-### 生效范围
+### Scope of Effect
 
-* Watchtower的名称
-* 校验器的参数
-* 数据加载器的参数
+Applies to Watchtower names, checker parameters, and loader configurations.
 
-### 自定义宏
+### Custom Macros
 
-。。。
+Leverage personalized macros for dynamic content insertion.
 
-## 支持的数据库
+## Supported Databases
 
-* MySQL
-* Postgresql
-* SQLite
-* ...
+- MySQL
+- PostgreSQL
+- SQLite
+- And more...
 
-## 示例
+## TODO
+
+- web frontend
+
+## Example
 
 ```python
 import datetime
-from data_watchtower import (DbServices, Watchtower, DatabaseLoader,
-                             ExpectRowCountToBeBetween, ExpectColumnValuesToNotBeNull)
+from data_watchtower import DbServices, Watchtower, DatabaseLoader, ExpectRowCountToBeBetween,
+    ExpectColumnValuesToNotBeNull
 
+# Database URLs
 dw_test_data_db_url = "sqlite:///test.db"
 dw_backend_db_url = "sqlite:///data.db"
 
-# 自定义宏模板
+# Custom Macro Definitions
 custom_macro_map = {
     'today': {'impl': lambda: datetime.datetime.today().strftime("%Y-%m-%d")},
     'start_date': '2024-04-01',
     'column': 'name',
 }
-# 设置数据加载器,用来加载需要校验的数据
-query = "SELECT * FROM score where date='${today}'"
+
+# Configure Data Loader
+query = "SELECT * FROM score WHERE date='${today}'"
 data_loader = DatabaseLoader(query=query, connection=dw_test_data_db_url)
 data_loader.load()
-# 创建监控项
-wt = Watchtower(name='score of ${today}', data_loader=data_loader, custom_macro_map=custom_macro_map)
-# 添加校验器
-params = ExpectRowCountToBeBetween.Params(min_value=20, max_value=None)
-wt.add_validator(ExpectRowCountToBeBetween(params))
 
-params = ExpectColumnValuesToNotBeNull.Params(column='${column}')
-wt.add_validator(ExpectColumnValuesToNotBeNull(params))
+# Instantiate Watchtower
+wt = Watchtower(name='Score Data of ${today}', data_loader=data_loader, custom_macro_map=custom_macro_map)
 
-result = wt.run()
-print(result['success'])
+# Add Validators
+row_count_params = ExpectRowCountToBeBetween.Params(min_value=20)
+wt.add_validator(ExpectRowCountToBeBetween(row_count_params))
 
-# 保存监控配置以及监控结果
-db_svr = DbServices(dw_backend_db_url)
-# 创建表
-db_svr.create_tables()
-# 保存监控配置
-db_svr.add_watchtower(wt)
-# 保存监控结果
-db_svr.save_result(wt, result)
-# 重新计算监控项的成功状态
-db_svr.update_watchtower_success_status(wt)
+null_check_params = ExpectColumnValuesToNotBeNull.Params(column='${column}')
+wt.add_validator(ExpectColumnValuesToNotBeNull(null_check_params))
 
+# Execute Validation
+validation_result = wt.run()
+print(validation_result['success'])
 
+# Persist Monitoring Setup and Results
+db_service = DbServices(dw_backend_db_url)
+db_service.create_tables()
+db_service.add_watchtower(wt)
+db_service.save_result(wt, validation_result)
+db_service.update_watchtower_success_status(wt)
 ```
+
