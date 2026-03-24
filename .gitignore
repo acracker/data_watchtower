@@ -227,3 +227,7 @@ cache
 .run
 local.md
 _cache
+uv.lock
+.python-version
+.venv
+

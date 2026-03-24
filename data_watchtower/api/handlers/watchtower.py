@@ -3,44 +3,84 @@
 from .base import BaseHandler
 from ...core.watchtower import Watchtower
 from ... import get_registered_data_loader_maps
-from ...core import get_registered_validators, get_registered_validator_maps
+from ...core import get_registered_validator_maps
 
 
 class WatchtowerHandler(BaseHandler):
     def get(self):
-        name = self.get_argument('name')
+        name = self.get_argument("name")
         wt = self.database.get_watchtower(name)
 
         if not wt:
-            self.json(error={'err_code': 1001, 'err_msg': 'watchtower not found'})
+            self.json(error={"err_code": 1001, "err_msg": "watchtower not found"})
             return
-        item = wt.to_dict()
-        if isinstance(item.get('params'), dict):
-            for k, v in item['params'].items():
+        item = wt
+        if isinstance(item.get("params"), dict):
+            for k, v in item["params"].items():
                 item[k] = v
-            del item['params']
-        result = dict(
-            data=item
-        )
+            del item["params"]
+        result = dict(data=item)
         return self.json(result)
 
     def post(self):
         params = self.json_loads(self.request.body)
+        required_fields = ["data_loader_cls", "data_loader_params", "name"]
+        missing = [f for f in required_fields if f not in params]
+        if missing:
+            return self.json(
+                error={
+                    "err_code": 1003,
+                    "err_msg": "missing required fields: %s" % ", ".join(missing),
+                }
+            )
+
         data_loader_maps = get_registered_data_loader_maps()
-        data_loader_cls = data_loader_maps[params.pop('data_loader_cls')]
-        data_loader = data_loader_cls.from_dict(params.pop('data_loader_params'))
-        watchtower = Watchtower(name=params.pop('name'), data_loader=data_loader, **params)
+        data_loader_cls_name = params.pop("data_loader_cls")
+        if data_loader_cls_name not in data_loader_maps:
+            return self.json(
+                error={
+                    "err_code": 1004,
+                    "err_msg": "unknown data_loader_cls: %s" % data_loader_cls_name,
+                }
+            )
+
+        data_loader_cls = data_loader_maps[data_loader_cls_name]
+        data_loader = data_loader_cls.from_dict(params.pop("data_loader_params"))
+        watchtower = Watchtower(
+            name=params.pop("name"), data_loader=data_loader, **params
+        )
         self.database.add_watchtower(watchtower)
         return self.json([])
 
     def put(self):
         params = self.json_loads(self.request.body)
+        required_fields = ["data_loader_cls", "data_loader_params", "name"]
+        missing = [f for f in required_fields if f not in params]
+        if missing:
+            self.json(
+                error={
+                    "err_code": 1003,
+                    "err_msg": "missing required fields: %s" % ", ".join(missing),
+                }
+            )
+
         data_loader_maps = get_registered_data_loader_maps()
-        data_loader_cls = data_loader_maps[params.pop('data_loader_cls')]
-        data_loader = data_loader_cls.from_dict(params.pop('data_loader_params'))
-        watchtower = Watchtower(name=params.pop('name'), data_loader=data_loader, **params)
+        data_loader_cls_name = params.pop("data_loader_cls")
+        if data_loader_cls_name not in data_loader_maps:
+            return self.json(
+                error={
+                    "err_code": 1004,
+                    "err_msg": "unknown data_loader_cls: %s" % data_loader_cls_name,
+                }
+            )
+
+        data_loader_cls = data_loader_maps[data_loader_cls_name]
+        data_loader = data_loader_cls.from_dict(params.pop("data_loader_params"))
+        watchtower = Watchtower(
+            name=params.pop("name"), data_loader=data_loader, **params
+        )
         item = watchtower.to_dict()
-        self.database.update_watchtower(item.pop('name'), **item)
+        self.database.update_watchtower(item.pop("name"), **item)
         return self.json([])
 
 
@@ -48,23 +88,21 @@ class WatchtowerListHandler(BaseHandler):
     def get(self):
         data = self.database.get_watchtowers()
         for item in data:
-            data_loader = item['data_loader']
+            data_loader = item["data_loader"]
             if isinstance(data_loader, dict):
-                item['data_loader'] = data_loader.pop('__class__')
-                item['cls_name'] = item['data_loader'].split(':')[-1]
+                item["data_loader"] = data_loader.pop("__class__")
+                item["cls_name"] = item["data_loader"].split(":")[-1]
                 # item['data_loader_params'] = data_loader
-                item['cls_params'] = data_loader
+                item["cls_params"] = data_loader
                 data_loader_maps = get_registered_data_loader_maps()
                 # todo 如果data_loader被删除， 则会报错
-                data_loader_cls = data_loader_maps[item['cls_name']]
-                item['data_loader_schema'] = data_loader_cls.to_schema()
-            if isinstance(item.get('params'), dict):
-                for k, v in item['params'].items():
+                data_loader_cls = data_loader_maps[item["cls_name"]]
+                item["data_loader_schema"] = data_loader_cls.to_schema()
+            if isinstance(item.get("params"), dict):
+                for k, v in item["params"].items():
                     item[k] = v
-                del item['params']
-        result = dict(
-            records=data
-        )
+                del item["params"]
+        result = dict(records=data)
         self.json(result)
         return
 
@@ -74,12 +112,12 @@ class WatchtowerListHandler(BaseHandler):
 
 class ValidatorRelationHandler(BaseHandler):
     def get(self):
-        name = self.get_argument('name')
+        name = self.get_argument("name")
         validators = self.database.get_validators_of_watchtower(name)
         result = []
         for item in validators:
-            item['cls_name'] = item['__class__'].split(':')[-1]
-            item['cls_params'] = item.pop('params')
+            item["cls_name"] = item["__class__"].split(":")[-1]
+            item["cls_params"] = item.pop("params")
             result.append(item)
         self.json(dict(records=result))
 
@@ -100,22 +138,22 @@ class ValidatorRelationHandler(BaseHandler):
 
         # 从请求体中加载JSON数据
         data = self.json_loads(self.request.body)
-        name = data['name']  # watchtower的名称
-        validator_class_name = data['validator']  # validator的类名
-        params = data['params']  # validator的参数
+        name = data["name"]  # watchtower的名称
+        validator_class_name = data["validator"]  # validator的类名
+        params = data["params"]  # validator的参数
 
         # 尝试从数据库获取指定名称的watchtower
         wt = self.database.get_watchtower(name)
         if not wt:
             # 如果watchtower未找到，返回错误信息
-            self.json(error={'err_code': 1001, 'err_msg': 'watchtower not found'})
+            self.json(error={"err_code": 1001, "err_msg": "watchtower not found"})
             return
 
         # 获取注册的validator类
         validator_cls = get_registered_validator_maps().get(validator_class_name)
         if validator_cls is None:
             # 如果validator类未找到，返回错误信息
-            self.json(error={'err_code': 1002, 'err_msg': 'validator not found'})
+            self.json(error={"err_code": 1002, "err_msg": "validator not found"})
             return
 
         # 实例化validator，并将其转换为字典格式
@@ -123,8 +161,8 @@ class ValidatorRelationHandler(BaseHandler):
         validator_item = validator.to_dict()
 
         # 从validator字典中提取类名和参数，准备添加到数据库
-        validator = validator_item['__class__']
-        params = self.json_dumps(validator_item['params'])
+        validator = validator_item["__class__"]
+        params = self.json_dumps(validator_item["params"])
 
         # 将validator添加到watchtower中
         self.database.add_validator_to_watchtower(name, validator, params)
@@ -134,7 +172,7 @@ class ValidatorRelationHandler(BaseHandler):
 
     def delete(self):
         body = self.json_loads(self.request.body)
-        name = body['name']  # watchtower的名称
-        validator_id = body['validator_id']
+        name = body["name"]  # watchtower的名称
+        validator_id = body["validator_id"]
         self.database.remove_validator_from_watchtower(name, validator_id)
         return self.json()

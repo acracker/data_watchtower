@@ -1,62 +1,43 @@
-[tool.poetry]
-package-mode = true
+[project]
 name = "data-watchtower"
 version = "0.0.5"
 description = "Data quality inspection tool. Identify issues before your CTO detects them!"
-authors = ["acracker <acracker@163.com>"]
-license = "MIT"
+authors = [
+    { name = "acracker", email = "acracker@163.com" }
+]
+license = { text = "MIT" }
 readme = "README.md"
-repository = "https://github.com/acracker/data_watchtower"
-
-
-[tool.poetry.dependencies]
-python = "^3.7.1"
-attrs = "^23.2.0"
-peewee = "^3.17.3"
-shortuuid = "^1.0.13"
-tornado = [
-    { version = "^6.2", python = "<3.8" },
-    { version = "^6.4", python = ">=3.8" }
-]
-pandas = [
-    { version = "^1.3.0", python = "<3.10" },
-    { version = "^2.1.0", python = ">=3.10" }
+requires-python = ">=3.9"
+dependencies = [
+    "attrs>=23.2.0,<24.0.0",
+    "peewee>=3.17.3,<4.0.0",
+    "shortuuid>=1.0.13,<2.0.0",
+    "tornado>=6.4,<7.0.0",
+    "pandas>=2.1.0,<3.0.0; python_version >= '3.10'",
+    "pandas>=1.3.0,<2.0.0; python_version < '3.10'",
+    "polars>=0.20.23,<0.21.0",
+    "pyarrow>=16.0.0,<17.0.0",
+    "connectorx>=0.3.2,<0.4.0",
+    "apischema>=0.18.1,<0.19.0",
+    "arrow>=1.3.0,<2.0.0",
 ]
 
-polars = [
-    { version = "0.18.4", python = "<3.8" },
-    { version = "^0.20.23", python = ">=3.8" }
-]
-pyarrow = [
-    { version = "^12.0.1", python = "<3.8" },
-    { version = "^16.0.0", python = ">=3.8" }
-]
-connectorx = [
-    { version = "0.3.0", python = "<=3.7" },
-    { version = "0.3.1", python = "<=3.8" },
-    { version = "^0.3.2", python = ">3.8" }
-]
-apischema = "^0.18.1"
-arrow = [
-    { version = "^1.2.3", python = "<3.8" },
-    { version = "^1.3.0", python = ">=3.8" }
+[dependency-groups]
+dev = [
+    "faker==18.13.0",
+    "pytest>=8.2.0,<9.0.0",
+    "psycopg2-binary>=2.9.9,<3.0.0",
+    "pymysql>=1.1.0,<2.0.0",
 ]
 
-[tool.poetry.group.dev.dependencies]
-faker = "18.13.0"
-pytest = [
-    { version = "^7.4.4", python = "<3.8" },
-    { version = "^8.2.0", python = ">=3.8" }
-]
-psycopg2-binary = "^2.9.9"
-pymysql = "^1.1.0"
+[project.urls]
+Repository = "https://github.com/acracker/data_watchtower"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-
-[[tool.poetry.source]]
+[[tool.uv.index]]
 name = "tsinghua"
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
-priority = "primary"
+default = true

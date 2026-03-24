@@ -36,7 +36,7 @@ class DbServices(object):
 
     def get_watchtower(self, name):
         try:
-            model = WatchtowerModel.get(WatchtowerModel.name == name).get()
+            model = WatchtowerModel.get(WatchtowerModel.name == name)
         except DoesNotExist:
             return None
         item = model.to_dict()
@@ -206,11 +206,11 @@ class DbServices(object):
                 .order_by(ValidationDetailModel.run_time.desc())
                 .limit(1)
             )
-            item = query.get()
-            if item:
+            try:
+                item = query.get()
+            except DoesNotExist:
                 return True
-            else:
-                return item.success
+            return item.success
         else:
             raise ValueError('success_method error. value:%s' % success_method)
 

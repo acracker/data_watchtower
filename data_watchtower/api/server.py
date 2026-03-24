@@ -10,8 +10,10 @@ from data_watchtower import DbServices
 from data_watchtower.api.url import URLS
 
 default_db_url = os.getenv('DW_BACKEND_DB_URL', "sqlite:///data.db")
+default_debug = os.getenv('DW_DEBUG', 'false').lower() in ('true', '1', 'yes')
 define("port", default=8888, type=int, help="port to listen on")
 define("db_url", default=default_db_url, help="db url")
+define("debug", default=default_debug, type=bool, help="enable debug mode")
 
 
 def make_app():
@@ -19,7 +21,7 @@ def make_app():
     app = tornado.web.Application(
         URLS,
         database=database,
-        debug=True,
+        debug=options.debug,
         autoreload=False,
     )
     return app

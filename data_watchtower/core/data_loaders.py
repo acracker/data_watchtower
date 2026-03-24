@@ -22,20 +22,17 @@ class DatabaseLoader(DataLoader):
     connection = field(type=str)
 
     def _load(self):
-        if pl.__version__ > '0.18.4':
-            database = connect_db_from_url(self.connection)
-            connection = database.connection()
-            data = pl.read_database(self.query, connection=connection)
+        database = connect_db_from_url(self.connection)
+        connection = database.connection()
+        try:
+            if pl.__version__ > '0.18.4':
+                data = pl.read_database(self.query, connection=connection)
+            else:
+                data = pd.read_sql(sql=self.query, con=connection)
+            return data
+        finally:
             connection.close()
             database.close()
-            return data
-        else:
-            database = connect_db_from_url(self.connection)
-            connection = database.connection()
-            data = pd.read_sql(sql=self.query, con=connection)
-            connection.close()
-            database.close()
-            return data
 
 
 @lru_cache()

@@ -226,20 +226,3 @@ def get_subclasses(cls):
         subclasses.append(subclass)
         subclasses.extend(get_subclasses(subclass))
     return subclasses
-    pass
-
-
-def f2():
-    return 1
-
-
-def main():
-    def add():
-        return 1
-
-    import inspect
-    return
-
-
-if __name__ == '__main__':
-    main()

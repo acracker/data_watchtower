@@ -154,13 +154,18 @@ class Watchtower(object):
         return result
 
     @classmethod
+    def run_from_db(cls, name, db_svr, custom_macro_map=None, save_result=True):
+        data = db_svr.get_watchtower(name)
+        if data is None:
+            raise ValueError('watchtower not found: %s' % name)
+        wt = cls.from_dict(data)
+        if custom_macro_map:
+            wt.set_custom_macro(**custom_macro_map)
+        result = wt.run()
+        if save_result:
+            db_svr.save_result(wt, result)
+        return result
+
+    @classmethod
     def module_path(cls):
         return "%s:%s" % (cls.__module__, cls.__name__)
-
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()

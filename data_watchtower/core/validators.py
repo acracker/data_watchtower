@@ -10,7 +10,7 @@ from .base import Validator, ValidationResult
 
 from ..utils import get_subclasses, load_subclasses
 
-CUSTOM_VALIDATOR_PATH = os.getenv("DW_CUSTOM_VALIDATOR_PATH", "dw_custom.data_loaders")
+CUSTOM_VALIDATOR_PATH = os.getenv("DW_CUSTOM_VALIDATOR_PATH", "dw_custom.validators")
 logger = logging.getLogger(__name__)
 
 
