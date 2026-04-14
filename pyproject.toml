@@ -7,19 +7,26 @@ authors = [
 ]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "attrs>=23.2.0,<24.0.0",
-    "peewee>=3.17.3,<4.0.0",
-    "shortuuid>=1.0.13,<2.0.0",
-    "tornado>=6.4,<7.0.0",
-    "pandas>=2.1.0,<3.0.0; python_version >= '3.10'",
-    "pandas>=1.3.0,<2.0.0; python_version < '3.10'",
-    "polars>=0.20.23,<0.21.0",
-    "pyarrow>=16.0.0,<17.0.0",
-    "connectorx>=0.3.2,<0.4.0",
-    "apischema>=0.18.1,<0.19.0",
-    "arrow>=1.3.0,<2.0.0",
+    "attrs==26.1.0",
+    "peewee==4.0.4",
+    "shortuuid==1.0.13",
+    "tornado==6.5.5",
+    "polars==1.39.3",
+    "pyarrow==23.0.1",
+    "connectorx==0.4.5",
+    "apischema==0.19.0",
+    "arrow==1.4.0",
+    "faker==18.13.0",
+    "iniconfig==2.3.0",
+    "packaging==26.0",
+    "pluggy==1.6.0",
+    "polars-runtime-32==1.39.3",
+    "psycopg2-binary==2.9.11",
+    "pygments==2.20.0",
+    "pymysql==1.1.2",
+    "six==1.17.0",
 ]
 
 [dependency-groups]
@@ -39,5 +46,5 @@ build-backend = "hatchling.build"
 
 [[tool.uv.index]]
 name = "tsinghua"
-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/"
+url = "https://mirrors.cloud.tencent.com/pypi/simple/"
 default = true

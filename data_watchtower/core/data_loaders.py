@@ -3,7 +3,6 @@
 import os
 from functools import lru_cache
 
-import pandas as pd
 import polars as pl
 from attrs import define, field
 
@@ -22,17 +21,8 @@ class DatabaseLoader(DataLoader):
     connection = field(type=str)
 
     def _load(self):
-        database = connect_db_from_url(self.connection)
-        connection = database.connection()
-        try:
-            if pl.__version__ > '0.18.4':
-                data = pl.read_database(self.query, connection=connection)
-            else:
-                data = pd.read_sql(sql=self.query, con=connection)
-            return data
-        finally:
-            connection.close()
-            database.close()
+        data = pl.read_database_uri(self.query, uri=self.connection)
+        return data
 
 
 @lru_cache()

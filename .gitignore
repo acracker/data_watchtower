@@ -230,4 +230,4 @@ _cache
 uv.lock
 .python-version
 .venv
-
+publish*.sh

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DbServices(object):
     def __init__(self, connection):
         """
-        可以使用db_url进行数据库连接. 用法: https://docs.peewee-orm.com/en/latest/peewee/playhouse.html#db-url
+        可以使用db_url进行数据库连接. 用法: https://docs.peewee-orm.com/en/latest/peewee/db_tools.html#db-url
         或者直接使用peewee的Database对象
         :param connection:
             str: eg: sqlite:///data.db mysql://user:passwd@ip:port/my_db

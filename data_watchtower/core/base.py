@@ -3,7 +3,6 @@
 import datetime
 import logging
 import polars as pl
-import pandas as pd
 from attrs import define, field, NOTHING
 from apischema import settings, schema
 from apischema.json_schema import deserialization_schema
@@ -117,8 +116,6 @@ class Validator(object):
     def set_data(self, data):
         if isinstance(data, pl.DataFrame):
             self._data = data
-        elif isinstance(data, pd.DataFrame):
-            self._data = pl.from_pandas(data)
         else:
             self._data = pl.DataFrame(data)
 
