@@ -147,11 +147,10 @@ def get_registered_data_loader_maps():
         custom_subclasses = []
     result = {}
     for cls in subclasses + custom_subclasses:
-        cls_name = cls.__name__
-        if cls_name in result:
-            raise ValueError("Duplicate data loader name: %s" % cls_name)
-        else:
-            result[cls.__name__] = cls
+        key = cls.__name__
+        if key in result and result[key].module_path() != cls.module_path():
+            raise ValueError("Duplicate data loader name: %s" % key)
+        result[key] = cls
     return result
 
 

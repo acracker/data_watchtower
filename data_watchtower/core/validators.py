@@ -23,12 +23,11 @@ def get_registered_validator_maps():
     except ModuleNotFoundError:
         custom_subclasses = []
     result = {}
-    for cls in (subclasses + custom_subclasses):
-        cls_name = cls.__name__
-        if cls_name in result:
-            raise ValueError("Duplicate data loader name: %s" % cls_name)
-        else:
-            result[cls.__name__] = cls
+    for cls in set(subclasses + custom_subclasses):
+        key = cls.__name__
+        if key in result and result[key].module_path() != cls.module_path():
+            raise ValueError("Duplicate data loader name: %s" % key)
+        result[key] = cls
     return result
 
 
@@ -411,12 +410,6 @@ class ExpectColumnValuesToBeInReferenceColumn(Validator):
         source_values = set(df[source_col].drop_nulls().to_list())
 
         ref_loader_meta = json_loads(self.params.reference_data_loader)
-        cls_path = ref_loader_meta.get('__class__', '')
-        from .data_loaders import get_registered_data_loader_maps
-        allowed = {cls.module_path() for cls in get_registered_data_loader_maps().values()}
-        if cls_path not in allowed:
-            raise ValueError("reference_data_loader __class__ not allowed: %s" % cls_path)
-
         ref_loader = spawn_data_loader_from_dict(ref_loader_meta)
         ref_df = ref_loader.load()
         ref_values = set(ref_df[ref_col].drop_nulls().to_list())

@@ -233,4 +233,4 @@ def get_subclasses(cls):
     for subclass in cls.__subclasses__():
         subclasses.append(subclass)
         subclasses.extend(get_subclasses(subclass))
-    return subclasses
+    return list(set(subclasses))
