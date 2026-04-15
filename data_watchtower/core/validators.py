@@ -95,6 +95,11 @@ class ExpectColumnRecentlyUpdated(Validator):
                 )
             )
         last_updated_time = self.value_to_datetime(last_updated_time)
+        if last_updated_time is None:
+            return ValidationResult(
+                success=False,
+                metrics=dict(last_updated_time=None)
+            )
         now = datetime.datetime.now()
         delta = datetime.timedelta(days=self.params.days, hours=self.params.hours)
         return ValidationResult(
