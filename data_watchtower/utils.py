@@ -64,14 +64,22 @@ def to_dict(self):
 
 
 def spawn_validator_from_dict(item):
+    from .core.validators import get_registered_validator_maps
     cls_path = item.get('__class__')
+    allowed = {cls.module_path() for cls in get_registered_validator_maps().values()}
+    if cls_path not in allowed:
+        raise ValueError("validator __class__ not allowed: %s" % cls_path)
     cls = load_object(cls_path)
     return cls.from_dict(item)
 
 
 def spawn_data_loader_from_dict(item):
+    from .core.data_loaders import get_registered_data_loader_maps
     item = item.copy()
     cls_path = item.pop('__class__')
+    allowed = {cls.module_path() for cls in get_registered_data_loader_maps().values()}
+    if cls_path not in allowed:
+        raise ValueError("data_loader __class__ not allowed: %s" % cls_path)
     cls = load_object(cls_path)
     return cls.from_dict(item)
 
@@ -211,13 +219,13 @@ def walk_modules(path):
 
 
 def load_subclasses(root_modules, base_class):
-    result = []
+    result = set()
     for root_module in root_modules:
         for m in walk_modules(root_module):
             for obj in vars(m).values():
                 if inspect.isclass(obj) and issubclass(obj, base_class) and obj.__module__ == m.__name__:
-                    result.append(obj)
-    return result
+                    result.add(obj)
+    return list(result)
 
 
 def get_subclasses(cls):
