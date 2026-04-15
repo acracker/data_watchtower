@@ -200,3 +200,209 @@ class TestValidators:
         # 断言验证结果是否符合预期
         assert result.success is False
         assert set(result.metrics['excrescent_values']) == {'c', 'e'}
+
+
+class TestExpectColumnValuesToNotBeNull:
+    def test_fail_when_has_nulls(self):
+        df = pl.DataFrame({'a': [1, None, 3]})
+        v = ExpectColumnValuesToNotBeNull(ExpectColumnValuesToNotBeNull.Params(column='a'))
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert result.metrics['null_rows'] == 1
+        assert result.metrics['total_rows'] == 3
+
+    def test_all_null(self):
+        df = pl.DataFrame({'a': [None, None]})
+        v = ExpectColumnValuesToNotBeNull(ExpectColumnValuesToNotBeNull.Params(column='a'))
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert result.metrics['null_rows'] == 2
+
+
+class TestExpectColumnRecentlyUpdated:
+    def test_empty_dataframe_returns_false(self):
+        df = pl.DataFrame({'update_time': []}).cast({'update_time': pl.Datetime})
+        v = ExpectColumnRecentlyUpdated(
+            ExpectColumnRecentlyUpdated.Params(update_time_column='update_time', hours=1)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert result.metrics['last_updated_time'] is None
+
+    def test_exactly_on_boundary_fails(self):
+        # 最大值恰好等于 now - delta，应该失败（严格大于）
+        from datetime import datetime, timedelta
+        old_time = datetime.now() - timedelta(hours=2)
+        df = pl.DataFrame({'ts': [old_time]})
+        v = ExpectColumnRecentlyUpdated(
+            ExpectColumnRecentlyUpdated.Params(update_time_column='ts', hours=1)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+
+
+class TestExpectRowCountToBeBetween:
+    def test_fail_below_min(self):
+        df = pl.DataFrame({'a': [1, 2]})
+        v = ExpectRowCountToBeBetween(ExpectRowCountToBeBetween.Params(min_value=5, max_value=10))
+        v.set_data(df)
+        assert v.validation().success is False
+
+    def test_fail_above_max(self):
+        df = pl.DataFrame({'a': list(range(20))})
+        v = ExpectRowCountToBeBetween(ExpectRowCountToBeBetween.Params(min_value=1, max_value=10))
+        v.set_data(df)
+        assert v.validation().success is False
+
+    def test_no_bounds_always_success(self):
+        df = pl.DataFrame({'a': [1]})
+        v = ExpectRowCountToBeBetween(ExpectRowCountToBeBetween.Params())
+        v.set_data(df)
+        assert v.validation().success is True
+
+    def test_boundary_exclusive(self):
+        # min_value=5, max_value=10, row_count=5 → 不满足 5 < 5
+        df = pl.DataFrame({'a': list(range(5))})
+        v = ExpectRowCountToBeBetween(ExpectRowCountToBeBetween.Params(min_value=5, max_value=10))
+        v.set_data(df)
+        assert v.validation().success is False
+
+
+class TestExpectColumnMeanToBeBetween:
+    def test_fail_mean_out_of_range(self):
+        df = pl.DataFrame({'v': [100, 200, 300]})
+        v = ExpectColumnMeanToBeBetween(
+            ExpectColumnMeanToBeBetween.Params(column='v', min_value=1, max_value=10)
+        )
+        v.set_data(df)
+        assert v.validation().success is False
+
+    def test_only_min_bound(self):
+        df = pl.DataFrame({'v': [5, 10, 15]})
+        v = ExpectColumnMeanToBeBetween(
+            ExpectColumnMeanToBeBetween.Params(column='v', min_value=5)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is True  # mean=10 > 5
+
+    def test_only_max_bound(self):
+        df = pl.DataFrame({'v': [1, 2, 3]})
+        v = ExpectColumnMeanToBeBetween(
+            ExpectColumnMeanToBeBetween.Params(column='v', max_value=1)
+        )
+        v.set_data(df)
+        assert v.validation().success is False  # mean=2 > 1
+
+
+class TestExpectColumnStdToBeBetween:
+    def test_fail_std_out_of_range(self):
+        df = pl.DataFrame({'v': [1, 1, 1, 1]})  # std=0
+        v = ExpectColumnStdToBeBetween(
+            ExpectColumnStdToBeBetween.Params(column='v', min_value=1, max_value=5)
+        )
+        v.set_data(df)
+        assert v.validation().success is False
+
+    def test_no_bounds_always_success(self):
+        df = pl.DataFrame({'v': [1, 2, 3]})
+        v = ExpectColumnStdToBeBetween(ExpectColumnStdToBeBetween.Params(column='v'))
+        v.set_data(df)
+        assert v.validation().success is True
+
+
+class TestExpectColumnNullRatioToBeBetween:
+    def test_empty_dataframe_ratio_zero(self):
+        df = pl.DataFrame({'a': pl.Series([], dtype=pl.Utf8)})
+        v = ExpectColumnNullRatioToBeBetween(
+            ExpectColumnNullRatioToBeBetween.Params(column='a', min_value=0.1, max_value=0.5)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.metrics['null_ratio'] == 0
+        assert result.success is False  # 0 不在 (0.1, 0.5)
+
+    def test_no_nulls_ratio_zero(self):
+        df = pl.DataFrame({'a': ['x', 'y', 'z']})
+        v = ExpectColumnNullRatioToBeBetween(
+            ExpectColumnNullRatioToBeBetween.Params(column='a', min_value=0.0, max_value=0.5)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.metrics['null_ratio'] == 0.0
+        # min_value=0.0 是 falsy，源码替换为 -inf，所以 0.0 > -inf 成立
+        assert result.success is True
+
+    def test_all_null(self):
+        df = pl.DataFrame({'a': [None, None, None]})
+        v = ExpectColumnNullRatioToBeBetween(
+            ExpectColumnNullRatioToBeBetween.Params(column='a', min_value=0.5, max_value=1.5)
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.metrics['null_ratio'] == 1.0
+        assert result.success is True
+
+
+class TestExpectColumnDistinctValuesToContainSet:
+    def test_fail_missing_values(self):
+        df = pl.DataFrame({'c': ['a', 'b']})
+        v = ExpectColumnDistinctValuesToContainSet(
+            ExpectColumnDistinctValuesToContainSet.Params(column='c', value_set=['a', 'b', 'c'])
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert 'c' in result.metrics['laced_values']
+
+    def test_superset_passes(self):
+        df = pl.DataFrame({'c': ['a', 'b', 'c', 'd']})
+        v = ExpectColumnDistinctValuesToContainSet(
+            ExpectColumnDistinctValuesToContainSet.Params(column='c', value_set=['a', 'b'])
+        )
+        v.set_data(df)
+        assert v.validation().success is True
+
+
+class TestExpectColumnDistinctValuesToEqualSet:
+    def test_fail_extra_values(self):
+        df = pl.DataFrame({'c': ['a', 'b', 'c']})
+        v = ExpectColumnDistinctValuesToEqualSet(
+            ExpectColumnDistinctValuesToEqualSet.Params(column='c', value_set=['a', 'b'])
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert 'c' in result.metrics['param_laced_values']
+
+    def test_fail_missing_values(self):
+        df = pl.DataFrame({'c': ['a']})
+        v = ExpectColumnDistinctValuesToEqualSet(
+            ExpectColumnDistinctValuesToEqualSet.Params(column='c', value_set=['a', 'b'])
+        )
+        v.set_data(df)
+        result = v.validation()
+        assert result.success is False
+        assert 'b' in result.metrics['column_laced_values']
+
+
+class TestExpectColumnDistinctValuesToBeInSet:
+    def test_pass_subset(self):
+        df = pl.DataFrame({'c': ['a', 'b']})
+        v = ExpectColumnDistinctValuesToBeInSet(
+            ExpectColumnDistinctValuesToBeInSet.Params(column='c', value_set=['a', 'b', 'c'])
+        )
+        v.set_data(df)
+        assert v.validation().success is True
+
+    def test_pass_exact_match(self):
+        df = pl.DataFrame({'c': ['a', 'b', 'c']})
+        v = ExpectColumnDistinctValuesToBeInSet(
+            ExpectColumnDistinctValuesToBeInSet.Params(column='c', value_set=['a', 'b', 'c'])
+        )
+        v.set_data(df)
+        assert v.validation().success is True
