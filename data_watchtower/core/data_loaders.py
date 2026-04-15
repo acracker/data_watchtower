@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import sys
 import datetime
+import logging
 from functools import lru_cache
+from contextlib import contextmanager
 
 import duckdb
 import polars as pl
 from attrs import define, field
-from filelock import FileLock
 
 from .base import DataLoader
 from ..utils import get_subclasses, load_subclasses
 
+logger = logging.getLogger(__name__)
 CUSTOM_DATA_LOADER_PATH = os.getenv(
     "DW_CUSTOM_DATA_LOADER_PATH", "dw_custom.data_loaders"
 )
@@ -19,6 +22,46 @@ CACHE_DIR_PATH = os.getenv("DW_CACHE_DIR_PATH", "_cache")
 
 _CACHE_TABLE = "cache_data"
 _META_TABLE = "cache_meta"
+
+_IS_WINDOWS = sys.platform == "win32"
+
+if _IS_WINDOWS:
+    from filelock import FileLock
+
+    @contextmanager
+    def _read_lock(lock_path):
+        """Windows: 独占锁（不支持共享锁）"""
+        with FileLock(lock_path):
+            yield
+
+    @contextmanager
+    def _write_lock(lock_path):
+        """Windows: 独占锁"""
+        with FileLock(lock_path):
+            yield
+
+else:
+    import fcntl
+
+    @contextmanager
+    def _read_lock(lock_path):
+        """Linux/macOS: 共享锁，允许多进程并发读"""
+        with open(lock_path, "a+") as f:
+            fcntl.flock(f, fcntl.LOCK_SH)
+            try:
+                yield
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+
+    @contextmanager
+    def _write_lock(lock_path):
+        """Linux/macOS: 独占锁，阻塞直到所有读锁释放"""
+        with open(lock_path, "a+") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
 
 
 @define()
@@ -52,7 +95,7 @@ class DatabaseLoader(DataLoader):
     def _is_cache_valid(self, db_path, lock_path) -> bool:
         if not os.path.exists(db_path):
             return False
-        with FileLock(lock_path):
+        with _read_lock(lock_path):
             with duckdb.connect(db_path, read_only=True) as conn:
                 row = conn.execute(f"SELECT cached_at FROM {_META_TABLE}").fetchone()
         if row is None:
@@ -61,12 +104,13 @@ class DatabaseLoader(DataLoader):
         return (datetime.datetime.now() - cached_at).total_seconds() < self.ttl_cache
 
     def _read_cache(self, db_path, lock_path) -> pl.DataFrame:
-        with FileLock(lock_path):
+        with _read_lock(lock_path):
             with duckdb.connect(db_path, read_only=True) as conn:
                 return conn.execute(f"SELECT * FROM {_CACHE_TABLE}").pl()
 
     def _write_cache(self, db_path, lock_path, df: pl.DataFrame):
-        with FileLock(lock_path):
+        logger.info("About to update data, starting to acquire lock")
+        with _write_lock(lock_path):
             with duckdb.connect(db_path) as conn:
                 conn.execute(
                     f"CREATE OR REPLACE TABLE {_CACHE_TABLE} AS SELECT * FROM df"

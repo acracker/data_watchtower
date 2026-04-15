@@ -18,7 +18,7 @@ dependencies = [
     "connectorx>=0.3.0",
     "apischema>=0.15.0",
     "arrow>=0.7.0",
-    "duckdb>=1.5.2",
+    "duckdb>=1.1.3",
     "filelock>=3.13.0",
 ]
 
