@@ -8,7 +8,7 @@ import arrow
 from attrs import define, field
 from .base import Validator, ValidationResult
 
-from ..utils import get_subclasses, load_subclasses
+from ..utils import get_subclasses, load_subclasses, spawn_data_loader_from_dict, json_loads
 
 CUSTOM_VALIDATOR_PATH = os.getenv("DW_CUSTOM_VALIDATOR_PATH", "dw_custom.validators")
 logger = logging.getLogger(__name__)
@@ -371,3 +371,63 @@ class ExpectColumnDistinctValuesToBeInSet(Validator):
             )
         )
         return result
+
+
+class ExpectColumnValuesToBeInReferenceColumn(Validator):
+    """
+    检查当前数据源中某个字段的所有值，是否都存在于另一个数据源的某个字段中。
+    常用于跨表引用完整性检查，例如：流水表的商品ID是否都在商品基本信息表中。
+
+    如果两个数据源的字段名不同，使用 reference_column 指定参考数据源的字段名。
+    参考数据源使用 reference_data_loader 配置，支持 JSON 字符串或字典，
+    格式与普通 DataLoader 配置一致（包含 __class__ 和对应参数）。
+    参考数据源的 DataLoader 可以配置 ttl_cache 来利用 DuckDB 缓存，避免重复加载大表。
+    """
+
+    @define()
+    class Params:
+        column = field(
+            type=str,
+            metadata={'help': '当前数据源的字段名'},
+        )
+        reference_data_loader = field(
+            type=str,
+            metadata={'help': '参考数据源的DataLoader配置（JSON字符串，包含__class__和对应参数）'},
+        )
+        reference_column = field(
+            type=str,
+            default=None,
+            metadata={'help': '参考数据源的字段名，为空则与column相同'},
+        )
+
+    def __init__(self, params: Params):
+        super().__init__(params)
+        self.params = params
+
+    def _validation(self):
+        source_col = self.params.column
+        ref_col = self.params.reference_column or source_col
+        df = self.get_data()
+        source_values = set(df[source_col].drop_nulls().to_list())
+
+        ref_loader_meta = json_loads(self.params.reference_data_loader)
+        cls_path = ref_loader_meta.get('__class__', '')
+        from .data_loaders import get_registered_data_loader_maps
+        allowed = {cls.module_path() for cls in get_registered_data_loader_maps().values()}
+        if cls_path not in allowed:
+            raise ValueError("reference_data_loader __class__ not allowed: %s" % cls_path)
+
+        ref_loader = spawn_data_loader_from_dict(ref_loader_meta)
+        ref_df = ref_loader.load()
+        ref_values = set(ref_df[ref_col].drop_nulls().to_list())
+
+        missing_values = sorted(source_values - ref_values, key=str)
+        return ValidationResult(
+            success=len(missing_values) == 0,
+            metrics=dict(
+                missing_count=len(missing_values),
+                missing_values=missing_values[:100],
+                source_distinct_count=len(source_values),
+                ref_distinct_count=len(ref_values),
+            )
+        )

@@ -13,6 +13,7 @@ from .core.validators import (
     ExpectColumnDistinctValuesToContainSet,
     ExpectColumnDistinctValuesToEqualSet,
     ExpectColumnDistinctValuesToBeInSet,
+    ExpectColumnValuesToBeInReferenceColumn,
     get_registered_validator_maps,
     get_registered_validators,
 )
