@@ -2,10 +2,14 @@
 # -*- coding: utf-8 -*-
 import copy
 import datetime
+import logging
 
 from data_watchtower.utils import (spawn_data_loader_from_dict, spawn_validator_from_dict,
                                    get_string_values, MacroTemplate, json_loads, json_dumps)
+from data_watchtower.core.base import ValidationResult
 from data_watchtower.core.macro import DEFAULT_MACRO_CONFIG
+
+logger = logging.getLogger(__name__)
 
 
 class Watchtower(object):
@@ -119,7 +123,15 @@ class Watchtower(object):
 
             validator = spawn_validator_from_dict(validator_item)
             validator.set_data(data)
-            validator_result = validator.validation()
+            try:
+                validator_result = validator.validation()
+            except Exception as e:
+                # 单个校验器异常不应中断其余校验器, 记为失败并保留错误信息
+                logger.exception("Validator %s failed: %s", validator.get_validator_name(), e)
+                validator_result = ValidationResult(
+                    success=False,
+                    extra=dict(error=str(e)),
+                )
             validator_result.params = validator_item['params']
             validator_result.name = validator.get_validator_name()
             result.append(validator_result)

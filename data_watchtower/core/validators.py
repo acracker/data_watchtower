@@ -131,8 +131,16 @@ class ExpectColumnStdToBeBetween(Validator):
         column = self.params.column
         min_value = self.params.min_value
         max_value = self.params.max_value
-        std = round(df[column].std(), 2)
-        mean = round(df[column].mean(), 2)
+        raw_std = df[column].std()
+        raw_mean = df[column].mean()
+        # 空数据时 std/mean 为 None, 视为校验失败而非抛异常
+        if raw_std is None:
+            return ValidationResult(
+                success=False,
+                metrics=dict(values=[], std=None, mean=None),
+            )
+        std = round(raw_std, 2)
+        mean = round(raw_mean, 2) if raw_mean is not None else None
         success = True
         if min_value is not None or max_value is not None:
             min_value = min_value or -float('inf')
@@ -170,8 +178,16 @@ class ExpectColumnMeanToBeBetween(Validator):
         column = self.params.column
         min_value = self.params.min_value
         max_value = self.params.max_value
-        mean = round(df[column].mean(), 2)
-        std = round(df[column].std(), 2)
+        raw_mean = df[column].mean()
+        raw_std = df[column].std()
+        # 空数据时 mean/std 为 None, 视为校验失败而非抛异常
+        if raw_mean is None:
+            return ValidationResult(
+                success=False,
+                metrics=dict(values=[], mean=None, std=None),
+            )
+        mean = round(raw_mean, 2)
+        std = round(raw_std, 2) if raw_std is not None else None
         success = True
         if min_value is not None or max_value is not None:
             min_value = min_value or -float('inf')
